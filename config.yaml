@@ -1,0 +1,39 @@
+# ==========================================================================
+# Configuration for the UPWINS hyperspectral preprocessing project.
+# Edit paths/parameters here rather than in the notebooks. Paths are relative
+# to the repo root (launch Jupyter from the repo root). Point the *_image_dir
+# entries at your real data for recording; a small calibration set ships under
+# data/calibration/ so notebooks 02-03 reproduce from a clone.
+# ==========================================================================
+
+paths:
+  # --- Notebook 01: calibration ---
+  cal_image_dir: data/sample            # raw image containing the cal panels
+  cal_image: raw_0_or                   # ENVI file name (no extension)
+  cal_library_sli: data/calibration/cal_tarp_spectra.sli
+  cal_library_hdr: data/calibration/cal_tarp_spectra.hdr
+  cal_panel_rois: data/calibration/CalPanels.pkl     # saved cal-panel ROIs
+  panel_low: data/calibration/panel_low_spectra.npy  # intermediate outputs
+  panel_mid: data/calibration/panel_mid_spectra.npy
+
+  # calibration coefficients (written by 01, read by 02 and the batch script)
+  gain: data/calibration/gain.npy
+  offset: data/calibration/offset.npy
+
+  # --- Notebook 02: raw image to convert to reflectance ---
+  raw_image_dir: data/sample
+  raw_image: raw_34850_or               # ENVI file name (no extension)
+
+  # --- Notebooks 02/03: reflectance image to view / draw training ROIs on ---
+  reflectance_image_dir: data/sample
+  reflectance_image: raw_4000_or_ref.img
+
+reflectance:
+  smoothing_level: 2                    # spatial-smoothing iterations
+  bbl_wl_ranges: [[0, 425], [750, 770], [900, 2500]]   # bad-band wl ranges (nm) to drop
+
+batch:
+  # For scripts/batch_convert_reflectance.py: convert every image in this
+  # directory whose file name ends with `ends_with`.
+  input_dir: data/sample
+  ends_with: _or

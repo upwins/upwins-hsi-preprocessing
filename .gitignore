@@ -1,0 +1,12 @@
+# Large imagery lives outside the repo; keep only the small committed sample.
+data/*
+!data/calibration/
+!data/sample/
+!data/README.md
+data/sample/*
+!data/sample/README.md
+
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.env
