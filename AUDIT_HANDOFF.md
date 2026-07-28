@@ -11,8 +11,8 @@ identical to `main`) against `research_species_mapping` @ `df69254`.
 `upwins-veg-classifier` @ `ee8b474`, which ships to the same client and consumes this
 repo's outputs. The fixes below have been rewritten to use the patterns that repo already
 established, so the two deliverables look and behave the same. Where a recommendation
-changed from the first pass, it is marked **[revised]**. Section 3 is the new consistency
-baseline; read it before implementing anything.
+changed from the first pass, it is marked **[revised]**. Section 2 is the consistency
+baseline and section 6 records the owner's decisions; read both before implementing anything.
 
 **Goal being audited against:** consolidate notebook configuration into one config file,
 and make the notebooks straightforward to run from a clone of the repo.
@@ -183,14 +183,14 @@ for _section in ('paths', 'batch'):
             CONFIG[_section][_key] = str(REPO_ROOT / _val)
 ```
 
-Two adaptations this repo needs that the companion did not:
+One adaptation this repo needs that the companion did not: the section list is
+`('paths', 'batch')`, not `('paths', 'prediction')`.
 
-- The section list is `('paths', 'batch')`, not `('paths', 'prediction')`.
-- **`paths.cal_image`, `paths.raw_image` and `paths.reflectance_image` are bare ENVI file
-  *names*, not paths** — absolutizing them would produce `<root>/raw_0_or`. Either exclude
-  those three keys from the loop, or fold them into their `*_image_dir` first. Resolving
-  P1-5 by collapsing each dir+name pair into a single path key removes this wrinkle
-  entirely and is the cleaner order of operations — do P1-5 first.
+**Do P1-5 first and this loop needs no exclusions.** Today `paths.cal_image`,
+`paths.raw_image` and `paths.reflectance_image` are bare ENVI file *names*, not paths, so
+absolutizing them would produce `<root>/raw_0_or`. Once P1-5 has folded each
+`*_image_dir` + `*_image` pair into full paths, every string in both sections is a real
+repo-relative path and the loop applies uniformly.
 
 Also apply the same walk-up in `scripts/batch_convert_reflectance.py`, which currently does
 `open("config.yaml")` and only works from the repo root; its docstring says so, and that
@@ -211,7 +211,7 @@ run the first three cells: config loads, `upwins_hsi.utils`/`hsiViewer` import, 
 load with shape `(343,)`. Repeat with `jupyter lab` launched from inside `notebooks/` — the
 companion repo passes both, and so must this one.
 
-### P0-2. Docs promise a from-clone run that is not possible
+### P0-2. Docs promise a from-clone run that is not possible  **[BLOCKED — §6b-1]**
 
 `data/sample/` contains only a `README.md`, but `config.yaml` defaults point into it
 (`raw_0_or`, `raw_34850_or`, `raw_4000_or_ref.img`). Two claims are therefore false today:
@@ -221,7 +221,9 @@ companion repo passes both, and so must this one.
 - `data/README.md`: "Committed calibration set (small), so notebooks 02-03 reproduce"
 
 Shipping calibration alone does **not** make 02 runnable — 02 needs a raw cube to convert.
-This is gated on the open decision in §6; fix the claims to match whichever way it goes.
+This is gated on the deferred decision in §6b-1. **Until it is answered, leave this wording
+unchanged** — see the holding pattern there. This is the one item an implementing session
+should deliberately finish incomplete.
 
 **Consistency note.** The companion repo has the *same* unresolved gap and handles it
 honestly rather than by claiming otherwise: its `README.md` says plainly "No data ships in
@@ -314,17 +316,34 @@ Notebook 02 converts `raw_image` (`raw_34850_or`) and writes `raw_34850_or_ref`,
 notebook 03 read something 02 did not produce. Inherited from the originals (which pointed at
 two different collections), but it defeats "straightforward to run from a clone."
 
-**Fix:** make the defaults chain — `reflectance_image` should default to the `_ref` product of
-`raw_image`, either by convention in the config or derived in the notebook.
+**Fix:** make the defaults chain — the `reflectance_image` / `reflectance_image_hdr` pair
+should name the `_ref` product of `raw_image`. With the pair convention now decided (P1-5),
+set both keys in `config.yaml` explicitly, as shown in P1-5's target shape, and comment that
+they are notebook 02's output. Do not derive them in the notebook: that would half-defeat the
+pair convention, and notebook 03 must be runnable on a reflectance image the user did not
+produce with notebook 02.
 
-Precedent for deriving-in-the-notebook: the companion's `03_display_classification.ipynb`
-rebuilds its input path from the config rather than storing a second, driftable copy —
-`base = os.path.splitext(os.path.basename(CONFIG['prediction']['input_hdr']))[0]`, then
-`f"{base}_{TASK}_classification.hdr"`, with a comment explaining the naming rule. Do the
-same here: derive `<raw_image>_ref` in notebook 02/03 and comment it, rather than asking the
-user to keep two config keys in sync by hand.
+The companion's `03_display_classification.ipynb` does derive its input path from the config
+(`base = os.path.splitext(os.path.basename(CONFIG['prediction']['input_hdr']))[0]`, then
+`f"{base}_{TASK}_classification.hdr"`) — but that is a *generated* filename following a
+naming rule the notebook itself owns, which is not this case. Note the divergence in a
+comment so it does not read as an oversight.
 
-### P1-5. `config.yaml` extension convention is inconsistent  **[revised]**
+**Fix the save cell's cross-cell leak while you are here.** Notebook 02 cell 9 saves with
+`os.path.join(dir, fname + '_ref.hdr')`, where `dir`/`fname` are still bound from cell 6
+(the raw image). Correct today, but only because of cell ordering: cell 11 rebinds both to
+the *reflectance* image, so re-running cell 9 after cell 11 writes
+`<reflectance>_ref` — a wrong-path write with no error. Same class of hazard as P2-7. Use
+the config key directly:
+
+```python
+spectral.envi.save_image(CONFIG['paths']['raw_image'] + '_ref.hdr', imRef, metadata=md, force=True)
+```
+
+`spectral.envi.save_image` derives the image filename from the header path, so this writes
+`raw_34850_or_ref.img` + `.hdr` — matching the `reflectance_image` pair above.
+
+### P1-5. `config.yaml` extension convention is inconsistent  **[DECIDED — implement]**
 
 `cal_image` and `raw_image` are extension-less ENVI base names; `reflectance_image` includes
 `.img`. Nothing flags the difference. Notebook 02/03 paper over it with
@@ -340,18 +359,72 @@ The companion's convention is an **explicit pair** with a comment:
   image_hdr: data/sample/raw_0_ref.hdr
 ```
 
-**Recommendation:** go extension-less for all three and derive `.hdr`/`.img` in code — and
-collapse each `*_image_dir` + `*_image` pair into a single path key while you are in there
-(`cal_image: data/sample/raw_0_or`), which is what P0-1(b)'s absolutize loop wants. A user
-cannot create a mismatch with one key; with the companion's pair they can point `image` and
-`image_hdr` at different cubes. Comment the convention in `config.yaml` the way the
-companion comments its own.
+**DECIDED (owner): adopt the companion's explicit pair.** Implement it; the alternative
+below is recorded only so it is not re-proposed.
 
-**If exact key-shape parity across the two repos matters more**, the alternative is to adopt
-the companion's explicit pair here instead (`reflectance_image` + `reflectance_image_hdr`).
-That is a legitimate choice — it needs no change in the companion — but it keeps the
-mismatch hazard. Either way, pick one and comment it; do not ship three keys with two
-conventions. The owner's call; the first option is the recommendation.
+> **Correction to the first consistency pass.** That pass recommended the opposite —
+> extension-less for all three keys, with `.hdr`/`.img` derived in code — on the grounds
+> that one key cannot be internally mismatched. That reasoning does not survive contact with
+> the data. **The two ENVI products here genuinely use different filename conventions:** raw
+> cubes off the sensor have *no extension* on the image file (`raw_0_or` + `raw_0_or.hdr`),
+> while reflectance products written by `spectral.envi.save_image` get `.img`
+> (`raw_34850_or_ref.img` + `.hdr`). You cannot derive which is which from a bare stem, so
+> "extension-less everywhere" would have forced the notebooks to guess at the image
+> filename. The owner's choice is correct on the merits, not only for parity.
+
+Target shape — full paths, explicit `_hdr` companion, `*_image_dir` keys removed:
+
+```yaml
+paths:
+  # ENVI cubes are given as a pair: the image file and its header. Raw cubes from
+  # the sensor have no extension on the image file; reflectance products written by
+  # spectral.envi.save_image get .img. Naming both files explicitly keeps each case
+  # literal instead of guessed. Both entries of a pair must name the same cube.
+
+  # --- Notebook 01: raw image containing the cal panels ---
+  cal_image:             examples/sample/raw_0_or
+  cal_image_hdr:         examples/sample/raw_0_or.hdr
+
+  # --- Notebook 02: raw image to convert to reflectance ---
+  raw_image:             examples/sample/raw_34850_or
+  raw_image_hdr:         examples/sample/raw_34850_or.hdr
+
+  # --- Notebooks 02/03: reflectance image to view / draw training ROIs on ---
+  reflectance_image:     examples/sample/raw_34850_or_ref.img     # see P1-4 (chaining)
+  reflectance_image_hdr: examples/sample/raw_34850_or_ref.hdr
+```
+
+(Paths shown under `examples/` per P0-3; if decision §6a-1 lands on "no sample data", the
+paths change but the key shape does not.)
+
+Call sites to update — all of them collapse to a two-argument open:
+
+| File | Today | After |
+|---|---|---|
+| nb 01 cell 5, nb 02 cell 6 | `os.path.join(dir, fname_hdr)`, `fname_hdr = CONFIG[...] + '.hdr'` | `spectral.envi.open(CONFIG['paths']['cal_image_hdr'], CONFIG['paths']['cal_image'])` |
+| nb 02 cell 11, nb 03 cell 4 | `.rsplit('.', 1)[0] + '.hdr'` | `spectral.envi.open(CONFIG['paths']['reflectance_image_hdr'], CONFIG['paths']['reflectance_image'])` |
+
+The `.rsplit`/`+ '.hdr'` derivations all disappear. `batch.input_dir` stays a directory key —
+it genuinely names a directory, not a cube.
+
+**Add the mismatch guard the pair convention needs.** The single-key form's one real
+advantage was that a user cannot point the image and the header at different cubes. Buy that
+back with one line per pair, next to the open:
+
+```python
+assert Path(CONFIG['paths']['cal_image_hdr']).stem == Path(CONFIG['paths']['cal_image']).stem, \
+    "cal_image and cal_image_hdr name different cubes — check config.yaml"
+```
+
+`Path.stem` handles both conventions correctly (`raw_0_or` → `raw_0_or`;
+`raw_34850_or_ref.img` → `raw_34850_or_ref`). Without this, a mismatched pair surfaces as a
+confusing shape or dtype error deep inside `spectral`, or silently reads the wrong cube.
+
+*(Adding the same guard to the companion, which has the same hazard on `image`/`image_hdr`,
+is a candidate for the separate companion-repo session — see §8. Out of scope here.)*
+
+**Rejected alternative, do not re-propose:** extension-less for all three keys with
+`.hdr`/`.img` derived in code. See the correction above for why it does not work.
 
 ### P1-6. Notebook 01 overwrites tracked, shipped files  **[revised]**
 
@@ -407,7 +480,7 @@ or reload inside the cell.
 
 This is the same bug that made the original `atmospheric_compensation.py` unusable — see §7.
 
-### P2-8. Inherited math discrepancy in the reflectance formula
+### P2-8. Inherited math discrepancy in the reflectance formula  **[DEFERRED — do not touch]**
 
 Notebook 02 and the batch script apply:
 
@@ -455,61 +528,70 @@ markdown.
 
 ---
 
-## 6. Decisions needed from the owner — do not guess
+## 6. Decisions — answered, deferred, and defaulted
 
 > **On names.** This document refers only to "the owner." An earlier revision named a
 > person; that name was never stated anywhere in these three repos and had been inferred
 > from the `/home/jwvandyke/` path in `devcontainer.json`. Do not reintroduce a name, and
 > do not infer pronouns, without being told one.
 
-### 6a. Blocking — answer these before an implementing session starts
+### 6a. Answered by the owner — implement as stated, do not re-litigate
 
-Proceeding on a guess here produces work that has to be redone.
+- **Scope: `upwins-hsi-preprocessing` only.** The §8 parity defects in
+  `upwins-veg-classifier` are **out of scope** and are being handled in a separate session.
+  Do not touch that repo. Read it freely as the reference — that is what §2 is for — but
+  make no commits there and open no branch in it. If you find another cross-repo item,
+  add it to §8 as a note; do not act on it.
+- **P1-5: adopt the companion's explicit `image` + `image_hdr` pair convention.** Fully
+  specified in P1-5, including the target config shape, the call sites, and the mismatch
+  guard the convention requires. The first pass's opposite recommendation is retracted
+  there with the reason.
 
-1. **Sample data — now a two-repo decision.** Either (a) commit a small raw cube + a
-   reflectance cube so notebooks 02/03 genuinely run from a clone — then the README claims
-   become true; or (b) ship no sample data — then P0-2's claims must be rewritten to say the
-   user must supply their own imagery and edit `config.yaml` first. Do not leave the current
-   mismatch.
+### 6b. Deferred by the owner — do NOT guess, and do not block on them
 
-   `upwins-veg-classifier` has the *same* decision open (its `examples/README.md` is an
-   explicit placeholder and its trained model bundle is not committed either, so it cannot
-   run from a clone today). Answer it once for both repos and apply the same answer to both
-   — a client who can run one from a clone but not the other will assume something is broken.
-   If the answer is (a), note that per P0-3 the committed example must live in `examples/`,
-   not `data/`, in both repos.
+Both are deferred deliberately. Neither stops implementation; each has a defined holding
+pattern. Leave them visibly open rather than quietly resolving them.
 
-   *This decision drives:* P0-2, P0-3's directory layout, the config defaults, and the
-   README / `docs/data.md` / `examples/README.md` wording in **both** repos. It is the one
-   answer the most other work hangs off.
+1. **Sample data — deferred.** Whether a small raw + reflectance cube gets committed so
+   notebooks 02/03 run from a clone, or no sample data ships and the README claims are
+   rewritten to say the user must supply imagery.
 
-2. **Scope: is the implementing session allowed to change `upwins-veg-classifier` too?**
-   This document is titled for `upwins-hsi-preprocessing`, but three of its items are
-   inherently cross-repo: decision 1 above, the §8 parity defects, and P1-5 if the explicit-pair
-   convention is chosen. Say either "preprocessing only, file the rest" or "both repos, one
-   branch each." Without an answer a session will either overstep or silently drop §8.
+   *Holding pattern — do all of this, and stop there:* make the structural move in P0-3
+   (`examples/calibration/` for the shipped reference set, `examples/sample/` as the
+   placeholder directory carrying its README, `data/` gitignored in full), and point
+   `config.yaml` at the `examples/...` paths. Then **leave P0-2's wording exactly as it is
+   today, false claims and all**, and add a line to the top of this section recording that
+   it is still pending. Do not rewrite the README to say "no data ships" — that is
+   pre-empting answer (b). Do not invent a sample cube — that is pre-empting (a).
 
-3. **P2-8, the reflectance formula discrepancy.** `gain*(counts + offset)` as shipped, versus
-   `gain*counts + offset` as notebook 01 fits and as the original Greenhead notebook applies.
-   A science decision, not a code decision — a client will run whichever ships. No default
-   is offered on purpose.
+   Once answered, the remaining work is wording plus dropping files into `examples/sample/`.
+   Everything structural is already done by then. *Still blocks:* P0-2 only.
 
-### 6b. Has a stated default — a session can proceed, but confirm if you disagree
+   Note for whoever answers it: `upwins-veg-classifier` has the same gap (its `examples/`
+   is an empty placeholder and its model bundle is not committed), so the answer should
+   cover both repos even though implementing it here is scoped to this one.
 
-4. **P1-5**, which ENVI path convention both repos should use. *Default:* extension-less
-   everywhere, `.hdr`/`.img` derived in code, `*_image_dir` + `*_image` collapsed into one
-   key per image. Alternative is the companion's explicit `image` + `image_hdr` pair.
-5. **P2-9**, grant number / license / companion repo name. *Default:* leave as-is — all three
+2. **P2-8, the reflectance formula — deferred.** `gain*(counts + offset)` as shipped versus
+   `gain*counts + offset` as notebook 01 fits it.
+
+   *Holding pattern:* change nothing. This item was already "flag, do not fix" — a session
+   was never meant to touch the math. Add the P2-7-style clarifying comment if you like,
+   but do not alter the formula in either the notebook or the batch script. *Blocks:*
+   nothing in this implementation pass; it blocks shipping to the client.
+
+### 6c. Has a stated default — a session can proceed, but confirm if you disagree
+
+3. **P2-9**, grant number / license / companion repo name. *Default:* leave as-is — all three
    already match the reviewed companion repo. Confirming costs one sentence; if one is wrong
    it is wrong in both repos.
-6. **The second calibration set** (§7). The coefficients embedded in the dropped
+4. **The second calibration set** (§7). The coefficients embedded in the dropped
    `atmospheric_compensation.py` are numerically different from the committed ones and are a
    separate calibration. *Default:* do not preserve them — they remain in
    `research_species_mapping` history. Say so if that calibration matters and it should ship
    as a second `.npy` pair with a provenance note.
-7. **The dataset download link or DOI** for `docs/data.md`. *Default:* carry the companion's
+5. **The dataset download link or DOI** for `docs/data.md`. *Default:* carry the companion's
    `> **TODO (data owner):**` marker across unchanged. Supply a link or DOI if one exists.
-8. **The package name** for the `src/` layout. *Default:* `upwins_hsi`, mirroring
+6. **The package name** for the `src/` layout. *Default:* `upwins_hsi`, mirroring
    `upwins_veg`. Cosmetic; say if you want something else, because renaming after the fact
    touches every notebook.
 
@@ -569,11 +651,15 @@ Also dropped and **correctly so**: `analysis_2025_Greenhead_HWref_to_2PNLref.ipy
 
 ---
 
-## 8. Small defects found *in* `upwins-veg-classifier` — for parity  **[new]**
+## 8. Small defects found *in* `upwins-veg-classifier` — OUT OF SCOPE  **[new]**
 
-Found while reviewing it as the consistency baseline. Not this repo's bugs, and none are
-blocking, but they should be fixed there so the pair ships clean. Listed here because this is
-the live handoff document; move them to that repo's tracker if you prefer.
+> **Do not act on this section.** Per §6a, the owner is handling these in a separate session
+> against `upwins-veg-classifier`. An implementing session working from this document must
+> make no commits to that repo. This list is retained as the record of what that separate
+> session covers, and as context for why this repo looks the way it does.
+
+Found while reviewing that repo as the consistency baseline. Not this repo's bugs, and none
+are blocking.
 
 1. **`README.md` says "run the two notebooks in order"** (twice — in the Quickstart and in
    the Layout block's `notebooks/` line) but the table below it lists **three**. The third,
@@ -626,6 +712,24 @@ corrected mount target and confirm the shipped calibration set is still visible 
 (`ls examples/calibration/`). If anything the notebooks need is still under `data/`, it will
 be gone.
 
-**Suggested order:** P0-1(a) packaging → P1-5 (config key shape, since P0-1(b) depends on it)
-→ P0-1(b) path resolution → P0-3 (the `examples/` move, which also closes P1-6) → the §6
-decisions → P0-2 and P1-10 docs to match whatever was decided → P1-3, P1-4 → P2.
+**Suggested order.** Everything below is unblocked by the §6b deferrals; the only item that
+stops short is P0-2's wording.
+
+1. **P1-5** — the config key shape. Do it first: P0-1(b)'s absolutize loop depends on every
+   path key being a real path, and P1-4 writes into the same keys.
+2. **P0-1(a)** — `pyproject.toml`, the `src/` move, `pip install -e .`. Notebooks still
+   broken at this point; that is expected.
+3. **P0-1(b)** — the `REPO_ROOT` block in all three notebooks, `legacy/`, and the batch
+   script. **Run the verification recipe above now** — this is the first point where the
+   repo actually runs, and every later step assumes it does.
+4. **P0-3** — the `examples/` move and the full-`data/` gitignore. Closes **P1-6** for free.
+   Re-run the recipe; the config paths changed under it.
+5. **P1-4** — chain the reflectance keys, and fix notebook 02's save-cell leak.
+6. **P1-3** — the devcontainer. Verify the container half of P0-3 here, not earlier: the
+   mount only collides once the target path is corrected.
+7. **P1-10** — docs layout (`docs/data.md`, `examples/README.md`, README Layout + devcontainer
+   subsection, Quickstart). **P0-2's wording stays untouched** — §6b-1.
+8. **P2-7, P2-11** — the two comment-level cleanups. Leave **P2-8** alone entirely.
+
+Then update the §6b-1 holding-pattern note with what was actually done, so whoever answers
+the sample-data question knows exactly what remains.
