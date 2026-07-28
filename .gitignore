@@ -1,12 +1,15 @@
-# Large imagery lives outside the repo; keep only the small committed sample.
-data/*
-!data/calibration/
-!data/sample/
-!data/README.md
-data/sample/*
-!data/sample/README.md
+# Data lives outside the repo (bind-mounted over data/ in the devcontainer).
+# Nothing under data/ is committed, so this needs no exceptions. Anything the
+# repo does ship for a run lives outside data/ -- see examples/ and docs/data.md.
+data/
 
+# Notebook / Python cruft
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .env
+
+# Build metadata from `pip install -e .`
+*.egg-info/
+build/
+dist/

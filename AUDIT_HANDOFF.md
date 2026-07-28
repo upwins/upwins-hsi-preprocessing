@@ -183,8 +183,13 @@ for _section in ('paths', 'batch'):
             CONFIG[_section][_key] = str(REPO_ROOT / _val)
 ```
 
-One adaptation this repo needs that the companion did not: the section list is
-`('paths', 'batch')`, not `('paths', 'prediction')`.
+One adaptation this repo needs that the companion did not: iterate **`('paths',)`
+only** in the notebooks (they read no `batch` keys). Do **not** blindly absolutize
+the whole `batch` section — `batch.ends_with` (`_or`) is a string but *not* a path,
+and `str(REPO_ROOT / '_or')` would corrupt it so the batch script's suffix match
+finds nothing. In `scripts/batch_convert_reflectance.py`, absolutize `paths` plus
+`batch.input_dir` explicitly and leave `batch.ends_with` alone. *(Corrected during
+implementation — the first draft's `('paths', 'batch')` loop had this bug.)*
 
 **Do P1-5 first and this loop needs no exclusions.** Today `paths.cal_image`,
 `paths.raw_image` and `paths.reflectance_image` are bare ENVI file *names*, not paths, so
@@ -551,6 +556,15 @@ markdown.
 
 Both are deferred deliberately. Neither stops implementation; each has a defined holding
 pattern. Leave them visibly open rather than quietly resolving them.
+
+> **Implementation status (this pass).** Everything unblocked was implemented on branch
+> `claude/audit-handoff-review-4vpded`: P1-5, P0-1(a), P0-1(b), P0-3, P1-4, P1-3, P1-10,
+> P2-7, P2-11. **P0-2's wording was left false and unchanged** (README's "ships in
+> `data/calibration/` … run from a fresh clone" blockquote still points at the old path
+> and still promises a from-clone run) per the §6b-1 holding pattern; the sample-data
+> question is still open. **P2-8's reflectance formula was not touched.** The shipped
+> calibration set now lives in `examples/calibration/`; `data/` is gitignored in full and
+> holds only external imagery + notebook 01's regenerated outputs.
 
 1. **Sample data — deferred.** Whether a small raw + reflectance cube gets committed so
    notebooks 02/03 run from a clone, or no sample data ships and the README claims are

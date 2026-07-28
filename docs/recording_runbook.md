@@ -18,11 +18,11 @@ the gotchas.
 
 ## 0. Before you hit record
 
-- [ ] `pip install -r requirements.txt` in a clean env (or open the devcontainer). PyQt5 + pyqtgraph must work — you need a desktop/display session for the viewer.
-- [ ] Edit `config.yaml` so the `*_image_dir` / image-name entries point at your **real** collection.
+- [ ] `pip install -r requirements.txt && pip install -e .` in a clean env (or open the devcontainer). PyQt5 + pyqtgraph must work — you need a desktop/display session for the viewer.
+- [ ] Edit `config.yaml` so the image pairs (`cal_image`/`cal_image_hdr`, `raw_image`/`raw_image_hdr`, `reflectance_image`/`reflectance_image_hdr`) point at your **real** collection.
 - [ ] Confirm the data is reachable: the raw cal-panel image, a raw image to convert, and (for nb 03) a reflectance image.
-- [ ] The shipped `data/calibration/` set (gain/offset, tarp library, `CalPanels.pkl`) lets you run without redoing calibration if you'd rather demo only part of it.
-- [ ] `jupyter lab` launched **from the repo root** (so `import utils` / `from hsiViewer import …` resolve). Restart kernels so cell numbers are clean.
+- [ ] The shipped `examples/calibration/` set (gain/offset, tarp library, `CalPanels.pkl`) lets you run without redoing calibration if you'd rather demo only part of it.
+- [ ] `jupyter lab` — with the editable install above, imports (`from upwins_hsi import utils` / `from hsiViewer import …`) resolve whether you launch from the repo root or from `notebooks/`. Restart kernels so cell numbers are clean.
 
 ---
 

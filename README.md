@@ -16,8 +16,11 @@ companion `upwins-veg-classifier` repo.
 ```bash
 python -m venv .venv && source .venv/bin/activate     # or use the devcontainer
 pip install -r requirements.txt
-jupyter lab                                            # launch from the repo root
+pip install -e .                                      # makes `upwins_hsi` importable
+jupyter lab                                            # launch from the repo root or notebooks/
 ```
+
+> The devcontainer does the two install steps for you.
 
 > Notebooks 01 and 03 use the interactive **hsiViewer** (PyQt) to draw ROIs, so they
 > need a desktop/display session. A small calibration set ships in `data/calibration/`
@@ -31,9 +34,40 @@ jupyter lab                                            # launch from the repo ro
 | `notebooks/legacy/train_apply_lda_model.ipynb` | Legacy LDA classifier (superseded by `upwins-veg-classifier`). |
 | `scripts/batch_convert_reflectance.py` | Convert a whole directory of images to reflectance in one run. |
 
-All paths and parameters are in `config.yaml`. For recording, point the `*_image_dir`
-entries at your full data; see `data/README.md`. The recording guide is
-`docs/recording_runbook.md`.
+## Layout
+
+```
+config.yaml              All paths and parameters live here.
+notebooks/               The three deliverable notebooks (run in order), plus legacy/.
+src/upwins_hsi/          Importable support code (installed via `pip install -e .`).
+src/hsiViewer/           Interactive PyQt viewer + ROI tools. Import path kept as `hsiViewer`
+                         so ROI/cal-panel pickles (recorded as hsiViewer.hsi_viewer_ROI) load.
+scripts/                 Batch reflectance conversion.
+examples/calibration/    Committed calibration reference set; see examples/README.md.
+examples/sample/         Placeholder for a small runnable example (not yet populated).
+data/                    Not committed -- external imagery and run outputs; see docs/data.md.
+docs/                    Data guide and recording runbook.
+```
+
+## Data
+
+All paths and parameters are in `config.yaml`. For recording, point the image
+pairs in `config.yaml` at your full data; see `docs/data.md`. The recording
+guide is `docs/recording_runbook.md`.
+
+### If you use the devcontainer
+
+`.devcontainer/` bind-mounts an external data directory over the repo's `data/`:
+
+```
+source=${localEnv:HOME}/projects/upwins/data  ->  /workspaces/upwins-hsi-preprocessing/data
+```
+
+**The host path is hardcoded.** Edit that `mounts` line in
+`.devcontainer/devcontainer.json` if your data is not at `~/projects/upwins/data`,
+or Docker silently creates an empty directory and the notebooks fail with
+missing-file errors. Anything the repo ships for a run lives outside `data/`
+(under `examples/`), so the mount never hides it. See `docs/data.md`.
 
 ## Acknowledgment
 

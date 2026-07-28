@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tensorflow:24.12-tf2-py3
+FROM python:3.11-slim
 
 COPY requirements.txt .
 RUN apt-get update \

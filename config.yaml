@@ -1,32 +1,55 @@
 # ==========================================================================
 # Configuration for the UPWINS hyperspectral preprocessing project.
 # Edit paths/parameters here rather than in the notebooks. Paths are relative
-# to the repo root (launch Jupyter from the repo root). Point the *_image_dir
-# entries at your real data for recording; a small calibration set ships under
-# data/calibration/ so notebooks 02-03 reproduce from a clone.
+# to the repo root; the notebooks resolve them from there (so Jupyter can be
+# launched from either the repo root or the notebooks/ folder). A small
+# calibration set ships under examples/calibration/ so notebooks 02-03
+# reproduce from a clone.
 # ==========================================================================
 
 paths:
-  # --- Notebook 01: calibration ---
-  cal_image_dir: data/sample            # raw image containing the cal panels
-  cal_image: raw_0_or                   # ENVI file name (no extension)
-  cal_library_sli: data/calibration/cal_tarp_spectra.sli
-  cal_library_hdr: data/calibration/cal_tarp_spectra.hdr
-  cal_panel_rois: data/calibration/CalPanels.pkl     # saved cal-panel ROIs
-  panel_low: data/calibration/panel_low_spectra.npy  # intermediate outputs
-  panel_mid: data/calibration/panel_mid_spectra.npy
+  # ------------------------------------------------------------------------
+  # ENVI image cubes are given as a pair: the image file and its header. Raw
+  # cubes from the sensor have no extension on the image file; reflectance
+  # products written by spectral.envi.save_image get .img. Naming both files
+  # explicitly keeps each case literal instead of guessed. Both entries of a
+  # pair must name the same cube (the notebooks assert this).
+  # ------------------------------------------------------------------------
 
-  # calibration coefficients (written by 01, read by 02 and the batch script)
-  gain: data/calibration/gain.npy
-  offset: data/calibration/offset.npy
+  # --- Notebook 01: raw image containing the cal panels ---
+  cal_image:             examples/sample/raw_0_or
+  cal_image_hdr:         examples/sample/raw_0_or.hdr
 
   # --- Notebook 02: raw image to convert to reflectance ---
-  raw_image_dir: data/sample
-  raw_image: raw_34850_or               # ENVI file name (no extension)
+  raw_image:             examples/sample/raw_34850_or
+  raw_image_hdr:         examples/sample/raw_34850_or.hdr
 
   # --- Notebooks 02/03: reflectance image to view / draw training ROIs on ---
-  reflectance_image_dir: data/sample
-  reflectance_image: raw_4000_or_ref.img
+  # Notebook 02 writes this as raw_image's _ref product; the pair below names
+  # that output so 03 (and 02's own viewer cell) read what 02 produced.
+  reflectance_image:     examples/sample/raw_34850_or_ref.img
+  reflectance_image_hdr: examples/sample/raw_34850_or_ref.hdr
+
+  # ------------------------------------------------------------------------
+  # Calibration reference set: shipped, committed, read-only. Notebook 02 and
+  # the batch script read gain/offset from here by default.
+  # ------------------------------------------------------------------------
+  cal_library_sli: examples/calibration/cal_tarp_spectra.sli
+  cal_library_hdr: examples/calibration/cal_tarp_spectra.hdr
+  cal_panel_rois:  examples/calibration/CalPanels.pkl   # saved cal-panel ROIs
+  gain:            examples/calibration/gain.npy        # per-band calibration coefficients
+  offset:          examples/calibration/offset.npy
+
+  # ------------------------------------------------------------------------
+  # Notebook 01 outputs: written into gitignored data/ so re-running the
+  # calibration never dirties the working tree or clobbers the shipped set
+  # above (which is exactly reproducible from these). Copy them over the
+  # examples/ set if you want notebook 02 to use freshly-fitted coefficients.
+  # ------------------------------------------------------------------------
+  panel_low:  data/calibration/panel_low_spectra.npy    # intermediate outputs
+  panel_mid:  data/calibration/panel_mid_spectra.npy
+  gain_out:   data/calibration/gain.npy
+  offset_out: data/calibration/offset.npy
 
 reflectance:
   smoothing_level: 2                    # spatial-smoothing iterations
@@ -34,6 +57,7 @@ reflectance:
 
 batch:
   # For scripts/batch_convert_reflectance.py: convert every image in this
-  # directory whose file name ends with `ends_with`.
-  input_dir: data/sample
+  # directory whose file name ends with `ends_with`. input_dir is a path
+  # (resolved against the repo root); ends_with is a filename suffix, not a path.
+  input_dir: examples/sample
   ends_with: _or

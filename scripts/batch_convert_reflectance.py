@@ -8,23 +8,36 @@ reflectance using the gain/offset from notebook 01, then bad-band removal and
 spatial smoothing. Reflectance images are written next to each input as
 `<name>_ref.img/.hdr`.
 
-Paths and parameters come from config.yaml (run from the repo root):
+Paths and parameters come from config.yaml. The script resolves config.yaml
+(and the paths inside it) from the repo root, so it runs from any directory:
     python scripts/batch_convert_reflectance.py
 """
 import os
 import gc
 import time
+from pathlib import Path
 import numpy as np
 import spectral
 import yaml
 
-import utils  # spatial_smoothing
+from upwins_hsi import utils  # spatial_smoothing
 
 # ---- Configuration ----
-with open("config.yaml") as f:
+# config.yaml lives at the repo root and its paths are relative to it. Walk up
+# from this script's location to find the repo root, then absolutize every path
+# in the `paths` section against it.
+REPO_ROOT = Path(__file__).resolve().parent
+while not (REPO_ROOT / "config.yaml").exists() and REPO_ROOT != REPO_ROOT.parent:
+    REPO_ROOT = REPO_ROOT.parent
+with open(REPO_ROOT / "config.yaml") as f:
     CONFIG = yaml.safe_load(f)
+for _key, _val in CONFIG.get("paths", {}).items():
+    if isinstance(_val, str):
+        CONFIG["paths"][_key] = str(REPO_ROOT / _val)
 
-data_dir = CONFIG["batch"]["input_dir"]
+# batch.input_dir is a path (absolutize it); batch.ends_with is a filename
+# suffix, NOT a path, so it must be left alone.
+data_dir = str(REPO_ROOT / CONFIG["batch"]["input_dir"])
 ends_with_text = CONFIG["batch"]["ends_with"]
 smoothing_level = CONFIG["reflectance"]["smoothing_level"]
 bbl_wl_ranges = CONFIG["reflectance"]["bbl_wl_ranges"]

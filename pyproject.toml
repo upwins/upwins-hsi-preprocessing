@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "upwins-hsi-preprocessing"
+version = "1.0.0"
+description = "Empirical-line calibration of hyperspectral imagery to reflectance, and interactive ROI collection."
+readme = "README.md"
+requires-python = ">=3.10"
+# Kept as a table deliberately. The PEP 639 string form (license = "MIT") needs
+# setuptools >= 77, which would mean bumping [build-system] requires above and
+# relying on build isolation to fetch it — that breaks
+# `pip install --no-build-isolation` in pinned/offline environments. The table
+# form only costs a deprecation warning on new setuptools. Do not "modernize".
+license = {text = "MIT"}
+
+# No [project.dependencies] on purpose. Runtime dependencies are pinned in
+# requirements.txt, which is the single source of truth for this project — the
+# pins must match the environment the committed calibration set was created in,
+# and duplicating them here would let the two lists drift. `pip install -e .`
+# exists only to put `upwins_hsi` and `hsiViewer` on the import path; install
+# requirements.txt first (the devcontainer and the README both do).
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,7 +1,7 @@
 // For format details, see https://aka.ms/devcontainer.json.
 {
-	"name": "tf2-py3",
-	"build": { 
+	"name": "upwins-hsi-preprocessing",
+	"build": {
 		"context": "..",
 		"dockerfile": "Dockerfile"
 	},
@@ -12,8 +12,10 @@
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 
-	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "python --version",
+	// Runs after the workspace is mounted, so the editable install points at the
+	// live source tree rather than a build-time copy. Makes `upwins_hsi` and
+	// `hsiViewer` importable.
+	"postCreateCommand": "python -m pip install --no-cache-dir -e .",
 
 	// Configure tool-specific properties.
 	"customizations": {
@@ -22,14 +24,19 @@
 		}
 	  },
 
-	"runArgs": ["--gpus","all"
-    ],
-	//"--shm-size=1g", "--ulimit", "memlock=-1", "--ulimit", "stack=67108864"
+	// No "runArgs": ["--gpus", "all"] on purpose, and do not add it back. The
+	// companion upwins-veg-classifier keeps it because it trains a TensorFlow
+	// CNN and wants the GPU; this repo runs no TensorFlow and no CUDA code at
+	// all, so requiring an NVIDIA GPU would only lock out clients without one.
 
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	//"remoteUser": "root"
 
-	"mounts": ["source=/home/jwvandyke/projects/upwins/data,target=/workspaces/species_mapping/data,type=bind,consistency=cached"]
-
-	//"mounts": ["source=/home/gta/data,target=/workspaces/mm_general_dev/input_dir,type=bind,consistency=cached"]
+	// Mounts an external data directory over the repo's data/ so large data can
+	// live outside the repo. The host path below is hardcoded: edit it if your
+	// data is not at ~/projects/upwins/data, or Docker will silently create an
+	// empty directory there and the notebooks will fail with confusing
+	// missing-file errors. Anything the repo ships for a run lives outside data/
+	// (see examples/), so this mount never hides it. See the Data section of README.md.
+	"mounts": ["source=${localEnv:HOME}/projects/upwins/data,target=/workspaces/upwins-hsi-preprocessing/data,type=bind,consistency=cached"]
 }
