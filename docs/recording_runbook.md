@@ -19,10 +19,27 @@ the gotchas.
 ## 0. Before you hit record
 
 - [ ] `pip install -r requirements.txt && pip install -e .` in a clean env (or open the devcontainer). PyQt5 + pyqtgraph must work — you need a desktop/display session for the viewer.
-- [ ] Edit `config.yaml` so the image pairs (`cal_image`/`cal_image_hdr`, `raw_image`/`raw_image_hdr`, `reflectance_image`/`reflectance_image_hdr`) point at your **real** collection.
-- [ ] Confirm the data is reachable: the raw cal-panel image, a raw image to convert, and (for nb 03) a reflectance image.
-- [ ] The shipped `examples/calibration/` set (gain/offset, tarp library, `CalPanels.pkl`) lets you run without redoing calibration if you'd rather demo only part of it.
+- [ ] Set `config.yaml` for your **real** collection (see *config.yaml in brief* below): the `cal_image` and `raw_image` pairs, and `calibration_dir`.
+- [ ] Confirm the data is reachable: the raw cal-panel image and a raw image to convert. (nb 03 opens the reflectance image nb 02 produces.)
 - [ ] `jupyter lab` — with the editable install above, imports (`from upwins_hsi import utils` / `from hsiViewer import …`) resolve whether you launch from the repo root or from `notebooks/`. Restart kernels so cell numbers are clean.
+
+### config.yaml in brief (worth narrating)
+
+All paths and parameters live in `config.yaml` — you edit this, never the
+notebook code. On camera, point out:
+
+- **Image pairs.** Each ENVI cube is a `*_image` + `*_image_hdr` pair naming the
+  same file (raw cubes have no extension; `_ref` products end in `.img`). Set
+  `cal_image` for nb 01 and `raw_image` for nb 02.
+- **`calibration_dir`.** Where nb 01 writes this collection's `gain`/`offset` and
+  where nb 02 reads them back — one folder per collection, so runs never collide.
+  Skip nb 01 and nb 02 falls back to the shipped `examples/calibration/` seed set
+  (and says so).
+- **`reflectance_image` left blank** = nb 02's own `<raw_image>_ref` output, used
+  automatically by nb 02's viewer and nb 03. Only set it to draw ROIs on a
+  reflectance image you didn't just produce.
+- Paths are relative to the repo root and resolve whether you launch Jupyter from
+  the repo root or `notebooks/`.
 
 ---
 
@@ -37,9 +54,9 @@ Empirical-line calibration from in-scene tarps. Beats to hit:
 | Remove saturated pixels, average | Clean the panel spectra before fitting. |
 | Plot panel + ASD reference spectra | Compare measured counts to known reflectance. |
 | **Fit gain/offset for every band** | This is the empirical line: reference reflectance vs. measured counts, per band. Show the gain/offset curves. |
-| Save calibration | `gain.npy` / `offset.npy` — the hand-off to Part 2. |
+| Save calibration | `gain.npy` / `offset.npy` written into `calibration_dir` — the hand-off to Part 2. |
 
-**Expected result:** `data/calibration/gain.npy` and `offset.npy` written.
+**Expected result:** `gain.npy` and `offset.npy` (plus the panel-spectra intermediates) written into `calibration_dir` — e.g. `data/calibration/<collection>/`.
 
 ---
 
@@ -47,7 +64,7 @@ Empirical-line calibration from in-scene tarps. Beats to hit:
 
 | Section | Say / show |
 |---|---|
-| Load calibration | Reuse the gain/offset from Part 1. |
+| Load calibration | Reuse the gain/offset from Part 1 (read from `calibration_dir`; falls back to the shipped seed set, and says so, if this collection wasn't calibrated). |
 | Open a raw image | Point out the smoothing level and bad-band ranges come from the config. |
 | **Convert to reflectance** | Bad-band removal → per-band gain/offset → mask → spatial smoothing → save. This is the core transform. |
 | *(optional)* open reflectance in the viewer | Inspect a few pixel spectra to confirm they look like reflectance. |
