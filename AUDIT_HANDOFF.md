@@ -351,7 +351,7 @@ companion comments its own.
 the companion's explicit pair here instead (`reflectance_image` + `reflectance_image_hdr`).
 That is a legitimate choice — it needs no change in the companion — but it keeps the
 mismatch hazard. Either way, pick one and comment it; do not ship three keys with two
-conventions. Joe's call; the first option is the recommendation.
+conventions. The owner's call; the first option is the recommendation.
 
 ### P1-6. Notebook 01 overwrites tracked, shipped files  **[revised]**
 
@@ -419,8 +419,8 @@ Notebook 01 **fits** the coefficients as `reflectance = m·counts + b`, and the 
 `old analysis_2025_Greenhead _v2.ipynb` applies `gain[i]*counts + offset[i]` — the form matching
 the fit. The source repo disagrees with itself; the port faithfully copied notebook 2's version.
 
-**Not a porting error, and not for a new session to silently "fix."** Flag it to Joe for a
-science decision; a client will run this code.
+**Not a porting error, and not for a new session to silently "fix."** Flag it to the owner
+for a science decision; a client will run this code.
 
 ### P2-9. Unverified metadata assertions
 
@@ -430,14 +430,14 @@ These appear only in the new repo — the original has no README or license:
 - MIT License, "Copyright (c) 2025 upwins"
 - the companion repo name `upwins-veg-classifier`
 
-Confirm with Joe before handoff. Do not invent replacements.
+Confirm with the owner before handoff. Do not invent replacements.
 
 **Update from the consistency pass:** all three assertions are *identical* in
-`upwins-veg-classifier`, which Joe has already reviewed and cleaned — same grant number in
+`upwins-veg-classifier`, which the owner has already reviewed and cleaned — same grant number in
 its `README.md` and `CITATION.cff`, same `MIT License / Copyright (c) 2025 upwins`, and its
 docs name this repo as the companion. That raises confidence but is not confirmation: if
 one is wrong it is wrong in both places, and both would need the same correction. Still
-worth one explicit yes from Joe.
+worth one explicit yes from the owner.
 
 ### P2-11. Leftover research-style instruction in notebook 01  **[new]**
 
@@ -455,13 +455,22 @@ markdown.
 
 ---
 
-## 6. Decisions needed from Joe — do not guess
+## 6. Decisions needed from the owner — do not guess
 
-1. **Sample data (his open question) — now a two-repo decision.** Either (a) commit a small
-   raw cube + a reflectance cube so notebooks 02/03 genuinely run from a clone — then the
-   README claims become true; or (b) ship no sample data — then P0-2's claims must be
-   rewritten to say the user must supply their own imagery and edit `config.yaml` first.
-   Do not leave the current mismatch.
+> **On names.** This document refers only to "the owner." An earlier revision named a
+> person; that name was never stated anywhere in these three repos and had been inferred
+> from the `/home/jwvandyke/` path in `devcontainer.json`. Do not reintroduce a name, and
+> do not infer pronouns, without being told one.
+
+### 6a. Blocking — answer these before an implementing session starts
+
+Proceeding on a guess here produces work that has to be redone.
+
+1. **Sample data — now a two-repo decision.** Either (a) commit a small raw cube + a
+   reflectance cube so notebooks 02/03 genuinely run from a clone — then the README claims
+   become true; or (b) ship no sample data — then P0-2's claims must be rewritten to say the
+   user must supply their own imagery and edit `config.yaml` first. Do not leave the current
+   mismatch.
 
    `upwins-veg-classifier` has the *same* decision open (its `examples/README.md` is an
    explicit placeholder and its trained model bundle is not committed either, so it cannot
@@ -469,9 +478,40 @@ markdown.
    — a client who can run one from a clone but not the other will assume something is broken.
    If the answer is (a), note that per P0-3 the committed example must live in `examples/`,
    not `data/`, in both repos.
-2. **P1-5**, which ENVI path convention both repos should use (recommendation given).
-3. **P2-8**, the reflectance formula discrepancy.
-4. **P2-9**, grant number / license / companion repo name — same answer covers both repos.
+
+   *This decision drives:* P0-2, P0-3's directory layout, the config defaults, and the
+   README / `docs/data.md` / `examples/README.md` wording in **both** repos. It is the one
+   answer the most other work hangs off.
+
+2. **Scope: is the implementing session allowed to change `upwins-veg-classifier` too?**
+   This document is titled for `upwins-hsi-preprocessing`, but three of its items are
+   inherently cross-repo: decision 1 above, the §8 parity defects, and P1-5 if the explicit-pair
+   convention is chosen. Say either "preprocessing only, file the rest" or "both repos, one
+   branch each." Without an answer a session will either overstep or silently drop §8.
+
+3. **P2-8, the reflectance formula discrepancy.** `gain*(counts + offset)` as shipped, versus
+   `gain*counts + offset` as notebook 01 fits and as the original Greenhead notebook applies.
+   A science decision, not a code decision — a client will run whichever ships. No default
+   is offered on purpose.
+
+### 6b. Has a stated default — a session can proceed, but confirm if you disagree
+
+4. **P1-5**, which ENVI path convention both repos should use. *Default:* extension-less
+   everywhere, `.hdr`/`.img` derived in code, `*_image_dir` + `*_image` collapsed into one
+   key per image. Alternative is the companion's explicit `image` + `image_hdr` pair.
+5. **P2-9**, grant number / license / companion repo name. *Default:* leave as-is — all three
+   already match the reviewed companion repo. Confirming costs one sentence; if one is wrong
+   it is wrong in both repos.
+6. **The second calibration set** (§7). The coefficients embedded in the dropped
+   `atmospheric_compensation.py` are numerically different from the committed ones and are a
+   separate calibration. *Default:* do not preserve them — they remain in
+   `research_species_mapping` history. Say so if that calibration matters and it should ship
+   as a second `.npy` pair with a provenance note.
+7. **The dataset download link or DOI** for `docs/data.md`. *Default:* carry the companion's
+   `> **TODO (data owner):**` marker across unchanged. Supply a link or DOI if one exists.
+8. **The package name** for the `src/` layout. *Default:* `upwins_hsi`, mirroring
+   `upwins_veg`. Cosmetic; say if you want something else, because renaming after the fact
+   touches every notebook.
 
 ---
 
