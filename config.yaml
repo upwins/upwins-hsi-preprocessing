@@ -25,10 +25,17 @@ paths:
   raw_image_hdr:         examples/sample/raw_34850_or.hdr
 
   # --- Notebooks 02/03: reflectance image to view / draw training ROIs on ---
-  # Notebook 02 writes this as raw_image's _ref product; the pair below names
-  # that output so 03 (and 02's own viewer cell) read what 02 produced.
-  reflectance_image:     examples/sample/raw_34850_or_ref.img
-  reflectance_image_hdr: examples/sample/raw_34850_or_ref.hdr
+  # Leave BOTH blank to use the default convention: notebook 02's output for the
+  # raw image above, i.e. <raw_image>_ref.img and <raw_image>_ref.hdr (for the
+  # shipped example that is examples/sample/raw_34850_or_ref.*). Notebook 02
+  # always views its own freshly-written _ref output regardless of these keys;
+  # notebook 03 reads them as its input and falls back to the same default when
+  # they are blank. Set them only to point notebook 03 at a reflectance image
+  # that was NOT produced from raw_image (e.g. one supplied separately) --
+  # notebook 03 warns if a set value disagrees with the default. When set, both
+  # entries of the pair must name the same cube.
+  reflectance_image:
+  reflectance_image_hdr:
 
   # ------------------------------------------------------------------------
   # Calibration reference set: shipped, committed, read-only. Notebook 02 and
