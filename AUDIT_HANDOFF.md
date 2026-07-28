@@ -56,6 +56,30 @@ Sensor axis is 343 bands, 399.10–1000.35 nm (VNIR).
 > Do this with `git mv` — the file *contents* stay byte-identical, so the table above
 > still holds. Only the import statement in the notebooks changes.
 
+> **Post-implementation fidelity re-check (this pass).** After the cleanup was implemented on
+> `claude/audit-handoff-review-4vpded`, the working tree was diffed directly against
+> `research_species_mapping @ df69254` to confirm the relocations and edits changed nothing
+> technical. Everything in §1 still holds:
+> - `utils.py` and all five `hsiViewer/*.py` are byte-identical to the originals after the
+>   `git mv` into `src/`; every committed calibration artifact (`CalPanels.pkl`, `gain.npy`,
+>   `offset.npy`, `panel_low/mid_spectra.npy`, `cal_tarp_spectra.sli/.hdr`) matches by SHA-256.
+> - The notebook 01/02/03 code-cell diffs contain **only** hardcoded-path → `CONFIG[...]`
+>   substitutions, the `REPO_ROOT` block, and comments — every numeric/algorithmic cell is
+>   unchanged context (saturation `0.97`, `idx=150`, `use_all_regions`, the empirical-line
+>   gain/offset fit, the bad-band ranges, `smoothing_level=2`, and the `gain*(counts+offset)`
+>   conversion line all preserved verbatim).
+> - The legacy notebook differs by exactly its `import utils` line.
+> - `scripts/batch_convert_reflectance.py` is a faithful port of `atmospheric_compensation.py`
+>   (bad-band selection, conversion, smoothing, save all equivalent) plus the two intended
+>   changes only: config-sourced coefficients and the multi-image bug-fix (§7).
+> - `requirements.txt` went unpinned → pinned, dropped the spurious stdlib `importlib` entry,
+>   and added `psutil` (imported by `utils.py`), `PyYAML`, and `scipy` — no numerical effect.
+>
+> The two dropped `analysis_2025_Greenhead*` notebooks were re-confirmed as exploratory,
+> single-collection research (63 and 39 cells), not pipeline. Net: the current repo reproduces
+> the original's technical implementation exactly, differing only in the documented packaging/
+> config work and the one batch-script bug-fix.
+
 ---
 
 ## 2. What the companion repo already does — the consistency baseline
@@ -645,8 +669,9 @@ cleanup targets. Its name is also misleading: it performs empirical-line calibra
 in-scene tarps, not atmospheric compensation.
 
 **One genuine loss to be aware of.** The embedded coefficients are numerically different from
-the committed ones (`identical=False` for both gain and offset, both 343 bands). They are a
-separate calibration. If that calibration matters, preserve it as a second `.npy` pair under
+the committed ones (`identical=False` for both gain and offset, both 343 bands; spot-checked at
+band 0 — committed `gain=6.40e-04`, `offset=3.16e-03` vs embedded `gain=5.37e-04`,
+`offset=7.55e-03`). They are a separate calibration. If that calibration matters, preserve it as a second `.npy` pair under
 the shipped calibration directory with a provenance note — do not keep the script. It remains
 recoverable from `research_species_mapping` history either way.
 
