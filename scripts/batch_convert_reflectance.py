@@ -15,6 +15,7 @@ Paths and parameters come from config.yaml. The script resolves config.yaml
 import os
 import gc
 import time
+import warnings
 from pathlib import Path
 import numpy as np
 import spectral
@@ -43,8 +44,25 @@ smoothing_level = CONFIG["reflectance"]["smoothing_level"]
 bbl_wl_ranges = CONFIG["reflectance"]["bbl_wl_ranges"]
 
 # Calibration coefficients from notebook 01 (loaded once, subset per image).
-gain_full = np.load(CONFIG["paths"]["gain"])
-offset_full = np.load(CONFIG["paths"]["offset"])
+# Prefer this collection's bundle in calibration_dir; fall back to the shipped
+# seed set when it is not there yet, and say which was used so a stale or
+# wrong-collection calibration is noticed rather than silently applied.
+_cal_dir = CONFIG["paths"]["calibration_dir"]
+_seed_dir = CONFIG["paths"]["calibration_seed_dir"]
+_gain = os.path.join(_cal_dir, "gain.npy")
+_offset = os.path.join(_cal_dir, "offset.npy")
+if not (os.path.exists(_gain) and os.path.exists(_offset)):
+    warnings.warn(
+        f"No gain/offset in calibration_dir ({_cal_dir}); falling back to the "
+        f"shipped seed set in {_seed_dir}. Run notebook 01 for this collection "
+        "if it needs its own calibration."
+    )
+    _gain = os.path.join(_seed_dir, "gain.npy")
+    _offset = os.path.join(_seed_dir, "offset.npy")
+print(f"Using gain:   {_gain}")
+print(f"Using offset: {_offset}")
+gain_full = np.load(_gain)
+offset_full = np.load(_offset)
 
 # ---- Collect the images to process ----
 fnames = [os.path.join(data_dir, f) for f in os.listdir(data_dir)

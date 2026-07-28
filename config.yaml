@@ -38,25 +38,28 @@ paths:
   reflectance_image_hdr:
 
   # ------------------------------------------------------------------------
-  # Calibration reference set: shipped, committed, read-only. Notebook 02 and
-  # the batch script read gain/offset from here by default.
+  # Calibration inputs: shipped, committed, read-only reference the fit needs.
+  # (cal_tarp_spectra is the tarps' known reflectance -- the same across
+  # collections; CalPanels.pkl is the cal-panel ROIs for the cal image above.)
   # ------------------------------------------------------------------------
   cal_library_sli: examples/calibration/cal_tarp_spectra.sli
   cal_library_hdr: examples/calibration/cal_tarp_spectra.hdr
   cal_panel_rois:  examples/calibration/CalPanels.pkl   # saved cal-panel ROIs
-  gain:            examples/calibration/gain.npy        # per-band calibration coefficients
-  offset:          examples/calibration/offset.npy
 
   # ------------------------------------------------------------------------
-  # Notebook 01 outputs: written into gitignored data/ so re-running the
-  # calibration never dirties the working tree or clobbers the shipped set
-  # above (which is exactly reproducible from these). Copy them over the
-  # examples/ set if you want notebook 02 to use freshly-fitted coefficients.
-  # ------------------------------------------------------------------------
-  panel_low:  data/calibration/panel_low_spectra.npy    # intermediate outputs
-  panel_mid:  data/calibration/panel_mid_spectra.npy
-  gain_out:   data/calibration/gain.npy
-  offset_out: data/calibration/offset.npy
+  # Calibration bundle for THIS collection. Notebook 01 writes gain.npy,
+  # offset.npy and the panel_*_spectra.npy intermediates INTO this directory;
+  # notebook 02 and the batch script read gain.npy/offset.npy FROM it. Point it
+  # at a per-collection directory under data/ (gitignored) so each collection
+  # keeps its own coefficients and a re-run never clobbers another collection's.
+  calibration_dir: data/calibration/example
+
+  # Shipped seed calibration (committed, read-only). When calibration_dir has no
+  # gain/offset yet -- e.g. a fresh clone, before notebook 01 has been run --
+  # notebook 02 and the batch script fall back to this set and say so, so the
+  # repo still runs from a clone. Run notebook 01 for a real collection to write
+  # its own coefficients into calibration_dir above.
+  calibration_seed_dir: examples/calibration
 
 reflectance:
   smoothing_level: 2                    # spatial-smoothing iterations

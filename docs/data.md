@@ -12,24 +12,28 @@ What the repo *does* ship for a run lives outside `data/`, under `examples/`
 
 ```
 examples/
-├── calibration/                Committed calibration reference set (small):
-│   ├── cal_tarp_spectra.sli / .hdr   ASD cal-tarp reference library
-│   ├── CalPanels.pkl                 saved cal-panel ROIs (hsiViewer step in nb 01)
-│   ├── panel_low_spectra.npy         intermediate panel spectra
-│   ├── panel_mid_spectra.npy
-│   └── gain.npy / offset.npy         per-band calibration coefficients (read by nb 02)
+├── calibration/                Shipped SEED calibration (committed, read-only):
+│   ├── cal_tarp_spectra.sli / .hdr   ASD cal-tarp reference library (fit input)
+│   ├── CalPanels.pkl                 saved cal-panel ROIs (fit input)
+│   ├── gain.npy / offset.npy         seed coefficients -- notebook 02's fallback
+│   └── panel_low/mid_spectra.npy     intermediate panel spectra (record)
 └── sample/                     Placeholder for a small raw + reflectance example
                                 (see examples/sample/README.md)
 
 data/                           External, gitignored. Full imagery you supply,
-                                plus notebook 01's regenerated outputs
-                                (data/calibration/*.npy).
+└── calibration/<collection>/   plus each collection's calibration bundle,
+                                written by notebook 01 (gain.npy, offset.npy,
+                                panel_*_spectra.npy) and read by notebook 02.
 ```
 
-The committed calibration set is exactly reproducible: re-running notebook 01
-from these inputs regenerates `gain`/`offset` bit-for-bit. Notebook 01 writes
-its regenerated outputs to `data/calibration/` (gitignored) so a re-run never
-clobbers the shipped reference set.
+Each collection keeps its own calibration bundle. Notebook 01 writes gain/offset
+(and the panel-spectra intermediates) into `calibration_dir`
+(`data/calibration/<collection>/`, gitignored), and notebook 02 and the batch
+script read gain/offset from there — so re-calibrating one collection never
+clobbers another's. Until a collection has been calibrated, they fall back to
+the shipped seed set in `examples/calibration/` and say so, so the repo still
+runs from a fresh clone. The seed set is exactly reproducible: re-running
+notebook 01 on its inputs regenerates `gain`/`offset` bit-for-bit.
 
 ## Where the data comes from
 
