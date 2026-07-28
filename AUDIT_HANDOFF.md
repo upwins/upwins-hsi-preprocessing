@@ -7,13 +7,21 @@
 identical to `main`) against `research_species_mapping` @ `df69254`.
 **Audit was read-only** — no code was changed. Everything below is unimplemented.
 
+**Second pass (this revision):** reviewed against the already-cleaned companion repo
+`upwins-veg-classifier` @ `ee8b474`, which ships to the same client and consumes this
+repo's outputs. The fixes below have been rewritten to use the patterns that repo already
+established, so the two deliverables look and behave the same. Where a recommendation
+changed from the first pass, it is marked **[revised]**. Section 3 is the new consistency
+baseline; read it before implementing anything.
+
 **Goal being audited against:** consolidate notebook configuration into one config file,
 and make the notebooks straightforward to run from a clone of the repo.
 
 **Verdict:** the science is faithful; the packaging is not runnable. The port preserved the
 numerical content essentially perfectly, but moving the notebooks into `notebooks/` broke
 every relative path, and the docs promise a from-clone run that the repo cannot currently
-deliver.
+deliver. The companion repo already solved every one of these problems — this repo should
+copy those solutions rather than invent new ones.
 
 ---
 
@@ -44,11 +52,44 @@ panel spectra + tarp library --(per-band 3-point fit)--> gain, offset      max|d
 
 Sensor axis is 343 bands, 399.10–1000.35 nm (VNIR).
 
+> **Note for P0-1:** the fix below relocates `utils.py` and `hsiViewer/` into `src/`.
+> Do this with `git mv` — the file *contents* stay byte-identical, so the table above
+> still holds. Only the import statement in the notebooks changes.
+
 ---
 
-## 2. P0 — Blocking. The repo does not run from a clone.
+## 2. What the companion repo already does — the consistency baseline
 
-### P0-1. Moving notebooks into `notebooks/` broke every path
+`upwins-veg-classifier` (cleaned, same client, consumes this repo's reflectance images
+and ROI pickles) has already made a decision on each of these problems. Use its answer.
+Files worth reading side-by-side before starting: its `pyproject.toml`, `config.yaml`,
+`.gitignore`, `.devcontainer/devcontainer.json`, `docs/data.md`, and the setup cell of
+`notebooks/01_train_multitask_cnn.ipynb`.
+
+| Problem | `upwins-veg-classifier`'s answer | This repo today | Item |
+|---|---|---|---|
+| Notebooks in `notebooks/`, config at root | `REPO_ROOT` walk-up + absolutize every configured path. **No `os.chdir`, no `sys.path` mutation.** | `open('config.yaml')` — breaks | P0-1 |
+| Importing repo code from a notebook | `src/` layout + `pyproject.toml` + `pip install -e .` | bare `import utils` / `from hsiViewer import …` — breaks | P0-1 |
+| Editable install in the container | `"postCreateCommand": "python -m pip install --no-cache-dir -e ."` | absent | P0-1 / P1-3 |
+| Devcontainer data mount | `source=${localEnv:HOME}/projects/upwins/data`, correct workspace name, 5-line comment + README/`docs/data.md` warning | hardcoded `/home/jwvandyke/...`, **wrong** target repo name | P1-3 |
+| Data directory | `data/` gitignored **in full**; nothing shipped lives there | `data/calibration/` committed *inside* the future mount point | P0-3 |
+| Shipped runnable example | top-level `examples/` — deliberately outside the mount | `data/sample/` — inside the mount | P0-3 |
+| Notebook outputs | written under gitignored `data/` | written over tracked files | P1-6 |
+| Data documentation | `docs/data.md` | `data/README.md` (invisible once mounted) | P1-10 |
+| README structure | Quickstart → notebook table → **Layout** → Data → *If you use the devcontainer* → Acknowledgment | no Layout section, no devcontainer subsection | P1-10 |
+| ENVI path convention | explicit pair: `image` + `image_hdr` | mixed: two extension-less, one with `.img` | P1-5 |
+
+**Already consistent — leave alone:** `LICENSE` (MIT, "Copyright (c) 2025 upwins"),
+`CITATION.cff` (same shape, same NSF grant), `requirements.txt` (pinned, commented
+header explaining *why* pinned), the "markdown cell above every code cell" narration
+style, and the `docs/recording_runbook.md` structure (both are "Video 1 / Video 2" of
+one series and cross-reference each other correctly).
+
+---
+
+## 3. P0 — Blocking. The repo does not run from a clone.
+
+### P0-1. Moving notebooks into `notebooks/` broke every path  **[revised]**
 
 Jupyter sets the kernel's working directory to the **notebook's own directory**, not the
 directory the server was launched from. Confirmed in `jupyter_server`'s
@@ -73,31 +114,102 @@ from hsiViewer import ...    -> ModuleNotFoundError
 
 Launching from the repo root does not have that effect.
 
-**Recommended fix.** Add a bootstrap block to the existing setup cell of each of
-`01`, `02`, `03` (and `legacy/`, which is one level deeper). Root-anchored, so it works
-whether the kernel starts in `notebooks/` or the repo root:
+> **The first pass recommended a `os.chdir` + `sys.path.insert` bootstrap block. Do not
+> use it.** `upwins-veg-classifier` splits this into two separate mechanisms, and that
+> split is better as well as consistent: `sys.path.insert` accumulates duplicate entries
+> on every cell re-run, and `os.chdir` mutates process-global state that later cells and
+> the viewer inherit. The packaging approach has neither problem.
 
-```python
-# --- Resolve the repo root so paths/imports work regardless of kernel cwd ---
-import os, sys
-from pathlib import Path
-_root = Path.cwd()
-while not (_root / 'config.yaml').exists() and _root != _root.parent:
-    _root = _root.parent
-os.chdir(_root)
-sys.path.insert(0, str(_root))
+**Recommended fix — copy the companion repo's two mechanisms.**
+
+**(a) Imports: `src/` layout + editable install.** Add a `pyproject.toml` modelled on the
+companion's, including its two explanatory comments (why `license = {text = "MIT"}` is
+kept as a table, and why there is deliberately no `[project.dependencies]` — the pins in
+`requirements.txt` are the single source of truth):
+
+```toml
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "upwins-hsi-preprocessing"
+version = "1.0.0"
+description = "Empirical-line calibration of hyperspectral imagery to reflectance, and interactive ROI collection."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}          # + the companion's "do not modernize" comment
+
+[tool.setuptools.packages.find]
+where = ["src"]
 ```
 
-Place it **above** `import utils` / `from hsiViewer import ...` — those imports fail without it.
-Then update the runbook's checklist line.
+Then restructure (all moves are `git mv`; contents unchanged):
 
-Alternatives considered: moving the notebooks back to the repo root (simplest, works, but
-loses the tidy layout and reverts a deliberate choice); packaging the project properly
-(overkill for a handoff repo).
+```
+src/upwins_hsi/__init__.py        new — one-line docstring, mirrors src/upwins_veg/__init__.py
+src/upwins_hsi/utils.py           was utils.py (byte-identical)
+src/hsiViewer/__init__.py         new — REQUIRED: setuptools' packages.find skips
+                                  directories without one, and there is none today
+src/hsiViewer/hsi_viewer*.py      the 5 files, byte-identical
+```
 
-**Acceptance:** from a fresh clone, launch `jupyter lab` from the repo root, open
-`notebooks/02_convert_to_reflectance.ipynb`, run the first three cells — config loads,
-`utils`/`hsiViewer` import, `gain`/`offset` load with shape `(343,)`.
+Verified safe: no module inside `hsiViewer/` imports `utils` or any sibling `hsi_viewer_*`
+module, and `utils.py` imports nothing local — so the move creates no broken references.
+
+Notebook/script edits: `import utils` → `from upwins_hsi import utils` (notebook 02,
+`legacy/`, and `scripts/batch_convert_reflectance.py`). **`from hsiViewer import …` stays
+exactly as-is** — that import path must not change, because `CalPanels.pkl` and every ROI
+pickle this repo produces record the class as `hsiViewer.hsi_viewer_ROI.ROIs_class`, and
+`upwins-veg-classifier` ships a stand-in class at that same path to unpickle them. Renaming
+`hsiViewer` here would silently break the companion repo's training notebook.
+
+**(b) Paths: `REPO_ROOT` walk-up, no `chdir`.** Use the companion's block verbatim (its
+`notebooks/01_train_multitask_cnn.ipynb` cell 4), adapted to this repo's config sections:
+
+```python
+# config.yaml (and the paths inside it) are relative to the repo root, but
+# this notebook lives in notebooks/. Locate the repo root and resolve every
+# configured path against it so it works from either directory.
+REPO_ROOT = Path.cwd()
+while not (REPO_ROOT / 'config.yaml').exists() and REPO_ROOT != REPO_ROOT.parent:
+    REPO_ROOT = REPO_ROOT.parent
+
+with open(REPO_ROOT / 'config.yaml') as _f:
+    CONFIG = yaml.safe_load(_f)
+for _section in ('paths', 'batch'):
+    for _key, _val in CONFIG.get(_section, {}).items():
+        if isinstance(_val, str):
+            CONFIG[_section][_key] = str(REPO_ROOT / _val)
+```
+
+Two adaptations this repo needs that the companion did not:
+
+- The section list is `('paths', 'batch')`, not `('paths', 'prediction')`.
+- **`paths.cal_image`, `paths.raw_image` and `paths.reflectance_image` are bare ENVI file
+  *names*, not paths** — absolutizing them would produce `<root>/raw_0_or`. Either exclude
+  those three keys from the loop, or fold them into their `*_image_dir` first. Resolving
+  P1-5 by collapsing each dir+name pair into a single path key removes this wrinkle
+  entirely and is the cleaner order of operations — do P1-5 first.
+
+Also apply the same walk-up in `scripts/batch_convert_reflectance.py`, which currently does
+`open("config.yaml")` and only works from the repo root; its docstring says so, and that
+constraint can just go away.
+
+Then update the runbook's checklist line to
+`pip install -r requirements.txt && pip install -e .` — matching the companion runbook's
+"Before you hit record" item word for word — and drop the false "launch from the repo root
+so imports resolve" claim.
+
+Alternatives considered and rejected: moving the notebooks back to the repo root (works,
+but reverts a deliberate choice *and* diverges from the companion); a `sys.path` bootstrap
+(diverges, and re-run-hostile).
+
+**Acceptance:** from a fresh clone — `pip install -r requirements.txt && pip install -e .`,
+launch `jupyter lab` from the repo root, open `notebooks/02_convert_to_reflectance.ipynb`,
+run the first three cells: config loads, `upwins_hsi.utils`/`hsiViewer` import, `gain`/`offset`
+load with shape `(343,)`. Repeat with `jupyter lab` launched from inside `notebooks/` — the
+companion repo passes both, and so must this one.
 
 ### P0-2. Docs promise a from-clone run that is not possible
 
@@ -109,13 +221,57 @@ loses the tidy layout and reverts a deliberate choice); packaging the project pr
 - `data/README.md`: "Committed calibration set (small), so notebooks 02-03 reproduce"
 
 Shipping calibration alone does **not** make 02 runnable — 02 needs a raw cube to convert.
-This is gated on the open decision in §5; fix the claims to match whichever way it goes.
+This is gated on the open decision in §6; fix the claims to match whichever way it goes.
+
+**Consistency note.** The companion repo has the *same* unresolved gap and handles it
+honestly rather than by claiming otherwise: its `README.md` says plainly "No data ships in
+the repo", `examples/README.md` says "Placeholder — **nothing ships here yet**", and
+`docs/data.md` carries an explicit `> **TODO (data owner):** add the download link or DOI
+here.` Whatever §6 decides, both repos should end up telling the client the same story.
+If the answer is "no sample data ships", copy the companion's wording; do not leave this
+repo asserting a from-clone run that the companion correctly disclaims.
+
+### P0-3. The devcontainer mount will hide the shipped calibration set  **[new]**
+
+This is an interaction between P1-3 and the committed data, and it is why P1-3 cannot be
+fixed naively.
+
+`data/calibration/` is committed and *not* gitignored (verified — `git check-ignore`
+matches nothing under it). The devcontainer's `mounts` entry bind-mounts a host directory
+onto `data/` inside the container. A bind mount **replaces the entire directory view**:
+everything committed under `data/` becomes invisible inside the container.
+
+Today this is masked by a bug — the mount target is `/workspaces/species_mapping/data`
+(the *old* repo name), so it lands outside the workspace and `data/` survives untouched.
+**Fixing the target path, as P1-3 requires, activates the collision:** the shipped
+calibration set, `data/README.md`, and `data/sample/README.md` all disappear in the
+container, and the notebooks fail with confusing missing-file errors.
+
+The companion repo hit this and designed around it. Its `.gitignore` ignores `data/` in
+full with the comment "Anything the repo does ship for a run lives outside `data/`", and
+its `examples/README.md` has a section titled *"Why this is not under `data/`"* stating
+the rule explicitly.
+
+**Fix — adopt the same rule.** Move everything the repo ships for a run out of `data/`:
+
+```
+examples/calibration/    was data/calibration/ — the committed reference set
+examples/README.md       was data/sample/README.md, rewritten in the companion's shape,
+                         including its "Why this is not under data/" section
+docs/data.md             was data/README.md (see P1-10)
+data/                    gitignored in full; external imagery + run outputs only
+```
+
+Then update `paths.cal_library_sli`, `cal_library_hdr`, `cal_panel_rois`, `gain` and
+`offset` in `config.yaml` to point at `examples/calibration/...`, and rewrite `.gitignore`
+as a full `data/` ignore with the companion's explanatory comments. This is a strict
+improvement even setting the container aside: it is what makes P1-6 disappear.
 
 ---
 
-## 3. P1 — Fix before client handoff
+## 4. P1 — Fix before client handoff
 
-### P1-3. `.devcontainer/` was copied verbatim and is client-hostile
+### P1-3. `.devcontainer/` was copied verbatim and is client-hostile  **[revised]**
 
 `README.md` offers it as an install path ("or use the devcontainer"), but:
 
@@ -125,10 +281,31 @@ This is gated on the open decision in §5; fix the claims to match whichever way
   workspace and `data/` stays empty. It also leaks the maintainer's local filesystem layout.
 - `"runArgs": ["--gpus","all"]` hard-requires an NVIDIA GPU; a client without one cannot open it.
 - Base image `nvcr.io/nvidia/tensorflow:24.12-tf2-py3` is ~20 GB, for a project that uses no TensorFlow.
+- `"name": "tf2-py3"` describes a stack this repo does not use.
+- No `postCreateCommand`, so the editable install from P0-1 would not happen in the container.
 
-**Fix:** drop the bind mount (or make it a documented, commented-out example), drop `--gpus all`,
-and move to a plain `python:3.11-slim` base with `python3-pyqt5` installed. Nothing in this
-repo needs CUDA or TF.
+**Fix — match the companion's *structure and comments*, not its base image.**
+
+Copy verbatim from `upwins-veg-classifier/.devcontainer/devcontainer.json`:
+
+- The `mounts` line's form: `source=${localEnv:HOME}/projects/upwins/data,target=/workspaces/upwins-hsi-preprocessing/data,type=bind,consistency=cached`
+  — `${localEnv:HOME}` instead of a hardcoded home, and the **correct** repo name in the target.
+- The comment block above it, adapted: what it does, that the host path is hardcoded, that
+  Docker silently creates an empty directory if the source does not exist, and a pointer to
+  the Data section of `README.md`.
+- `"postCreateCommand": "python -m pip install --no-cache-dir -e ."`, with the companion's
+  comment ("Runs after the workspace is mounted, so the editable install points at the live
+  source tree rather than a build-time copy").
+
+**Deliberately diverge on the image, and say so in a comment** so nobody later "makes them
+consistent" and puts the 20 GB image back:
+
+- Drop `"runArgs": ["--gpus","all"]`. The companion keeps it because it trains a TensorFlow
+  CNN and genuinely wants the GPU; **this repo runs no TensorFlow and no CUDA code at all**
+  (`requirements.txt` has no TF), so requiring an NVIDIA GPU only locks clients out.
+- Base image `python:3.11-slim` with `python3-pyqt5` installed via apt (the existing
+  Dockerfile already installs `python3-pyqt5` — keep that line, change only the `FROM`).
+- Rename `"name"` from `tf2-py3` to something accurate, e.g. `upwins-hsi-preprocessing`.
 
 ### P1-4. Default config doesn't chain across notebooks
 
@@ -140,31 +317,87 @@ two different collections), but it defeats "straightforward to run from a clone.
 **Fix:** make the defaults chain — `reflectance_image` should default to the `_ref` product of
 `raw_image`, either by convention in the config or derived in the notebook.
 
-### P1-5. `config.yaml` extension convention is inconsistent
+Precedent for deriving-in-the-notebook: the companion's `03_display_classification.ipynb`
+rebuilds its input path from the config rather than storing a second, driftable copy —
+`base = os.path.splitext(os.path.basename(CONFIG['prediction']['input_hdr']))[0]`, then
+`f"{base}_{TASK}_classification.hdr"`, with a comment explaining the naming rule. Do the
+same here: derive `<raw_image>_ref` in notebook 02/03 and comment it, rather than asking the
+user to keep two config keys in sync by hand.
+
+### P1-5. `config.yaml` extension convention is inconsistent  **[revised]**
 
 `cal_image` and `raw_image` are extension-less ENVI base names; `reflectance_image` includes
 `.img`. Nothing flags the difference. Notebook 02/03 paper over it with
 `.rsplit('.', 1)[0] + '.hdr'`, which tolerates both for the header but not for the image file —
 a user who follows the other two entries' convention gets a failure inside `spectral.envi.open`.
 
-**Fix:** make all three extension-less and derive `.hdr`/`.img` in code, or document the
-difference explicitly in the config comments.
+The companion's convention is an **explicit pair** with a comment:
 
-### P1-6. Notebook 01 overwrites tracked, shipped files
+```yaml
+  # Reference reflectance image used to read the sensor's band centers
+  # (ENVI cube: give the file with and without the .hdr extension).
+  image:     data/sample/raw_0_ref
+  image_hdr: data/sample/raw_0_ref.hdr
+```
+
+**Recommendation:** go extension-less for all three and derive `.hdr`/`.img` in code — and
+collapse each `*_image_dir` + `*_image` pair into a single path key while you are in there
+(`cal_image: data/sample/raw_0_or`), which is what P0-1(b)'s absolutize loop wants. A user
+cannot create a mismatch with one key; with the companion's pair they can point `image` and
+`image_hdr` at different cubes. Comment the convention in `config.yaml` the way the
+companion comments its own.
+
+**If exact key-shape parity across the two repos matters more**, the alternative is to adopt
+the companion's explicit pair here instead (`reflectance_image` + `reflectance_image_hdr`).
+That is a legitimate choice — it needs no change in the companion — but it keeps the
+mismatch hazard. Either way, pick one and comment it; do not ship three keys with two
+conventions. Joe's call; the first option is the recommendation.
+
+### P1-6. Notebook 01 overwrites tracked, shipped files  **[revised]**
 
 Cells 21 and 34 write `panel_low_spectra.npy`, `panel_mid_spectra.npy`, `gain.npy`, `offset.npy`
 into `data/calibration/`, which is committed and **not** gitignored (verified with
 `git check-ignore`). Running 01 dirties the working tree and clobbers the reference calibration
 the repo ships.
 
-**Fix:** write notebook 01 outputs to a separate, gitignored location (e.g.
-`data/calibration/generated/` or an `outputs:` block in the config), keeping the shipped
-reference set read-only. Note the shipped set is exactly reproducible (§1), so it can always
-be regenerated.
+**Fix: this is resolved for free by P0-3** — no separate mechanism needed. Once the shipped
+reference set lives in `examples/calibration/` (read-only, committed) and `data/` is
+gitignored in full, point notebook 01's *output* keys at `data/calibration/`. Writes then land
+in ignored space, the working tree stays clean, and the shipped reference is untouched. This
+is exactly the companion's arrangement: every notebook output there (`paths.metrics_dir`,
+`prediction.output_dir`, `paths.model_dir`) goes to gitignored space, with the one small
+committed bundle kept out of the way.
+
+Separate the config keys accordingly — inputs read from `examples/`, outputs write to
+`data/` — and comment which is which. Note the shipped set is exactly reproducible (§1), so
+it can always be regenerated.
+
+### P1-10. Docs layout parity  **[new]**
+
+Small, mechanical, and worth doing because the client will open both repos side by side.
+
+- **`data/README.md` → `docs/data.md`.** Same content, same filename as the companion's, and
+  it stops being invisible under the container mount (P0-3). Mirror the companion's section
+  order: *Expected layout* → *Where the data comes from* → *Getting the full dataset* (with
+  the same `> **TODO (data owner):**` marker if there is no link yet) → *The devcontainer
+  mount*.
+- **`data/sample/README.md` → `examples/README.md`**, rewritten in the companion's shape,
+  including its *"Why this is not under `data/`"* closing section.
+- **Add a `## Layout` section to `README.md`**, matching the companion's — a fenced block
+  with one line per top-level entry. This repo has no such section today.
+- **Add an `### If you use the devcontainer` subsection under Data in `README.md`**, with the
+  companion's `source=… -> …` arrow diagram and its bolded *"The host path is hardcoded"*
+  warning.
+- **Update the Quickstart** to include `pip install -e .` with the companion's inline comment
+  (`# makes upwins_hsi importable`) and its "The devcontainer does both of these steps for
+  you" note.
+- **No `.env.example`.** The companion has one only because it can refresh its spectral
+  library from MongoDB. This repo reads no credentials, so do not add an empty one for
+  symmetry's sake. `.env` should stay in `.gitignore` either way.
 
 ---
 
-## 4. P2 — Worth a comment, not a rewrite
+## 5. P2 — Worth a comment, not a rewrite
 
 ### P2-7. `gain = gain[indices]` re-run hazard in notebook 02
 
@@ -172,7 +405,7 @@ Cell 9 rebinds `gain`/`offset`, which cell 3 loaded. Re-running cell 9 without r
 cell 3 double-subsets and raises `IndexError`. Faithful to the original; add a one-line comment
 or reload inside the cell.
 
-This is the same bug that made the original `atmospheric_compensation.py` unusable — see §6.
+This is the same bug that made the original `atmospheric_compensation.py` unusable — see §7.
 
 ### P2-8. Inherited math discrepancy in the reflectance formula
 
@@ -199,21 +432,50 @@ These appear only in the new repo — the original has no README or license:
 
 Confirm with Joe before handoff. Do not invent replacements.
 
+**Update from the consistency pass:** all three assertions are *identical* in
+`upwins-veg-classifier`, which Joe has already reviewed and cleaned — same grant number in
+its `README.md` and `CITATION.cff`, same `MIT License / Copyright (c) 2025 upwins`, and its
+docs name this repo as the companion. That raises confidence but is not confirmation: if
+one is wrong it is wrong in both places, and both would need the same correction. Still
+worth one explicit yes from Joe.
+
+### P2-11. Leftover research-style instruction in notebook 01  **[new]**
+
+Cell 3 of `01_calibrate_cal_panels.ipynb` is a raw HTML markdown cell:
+
+```html
+<p style="color:red">Change the dir and fname so choose the image for your collection with the cal panel.</p>
+```
+
+It has a typo, it uses inline red HTML that nothing else in either repo uses, and it tells
+the user to edit the notebook — contradicting `config.yaml`'s own header ("Edit paths/
+parameters here rather than in the notebooks"). The following cell already says the right
+thing ("Set this image in `config.yaml`"). Delete it, or fold it into that cell as plain
+markdown.
+
 ---
 
-## 5. Decisions needed from Joe — do not guess
+## 6. Decisions needed from Joe — do not guess
 
-1. **Sample data (his open question).** Either (a) commit a small raw cube + a reflectance
-   cube to `data/sample/` so notebooks 02/03 genuinely run from a clone — then the README
-   claims become true; or (b) ship no sample data — then P0-2's claims must be rewritten to
-   say the user must supply their own imagery and edit `config.yaml` first. Do not leave the
-   current mismatch.
-2. **P2-8**, the reflectance formula discrepancy.
-3. **P2-9**, grant number / license / companion repo name.
+1. **Sample data (his open question) — now a two-repo decision.** Either (a) commit a small
+   raw cube + a reflectance cube so notebooks 02/03 genuinely run from a clone — then the
+   README claims become true; or (b) ship no sample data — then P0-2's claims must be
+   rewritten to say the user must supply their own imagery and edit `config.yaml` first.
+   Do not leave the current mismatch.
+
+   `upwins-veg-classifier` has the *same* decision open (its `examples/README.md` is an
+   explicit placeholder and its trained model bundle is not committed either, so it cannot
+   run from a clone today). Answer it once for both repos and apply the same answer to both
+   — a client who can run one from a clone but not the other will assume something is broken.
+   If the answer is (a), note that per P0-3 the committed example must live in `examples/`,
+   not `data/`, in both repos.
+2. **P1-5**, which ENVI path convention both repos should use (recommendation given).
+3. **P2-8**, the reflectance formula discrepancy.
+4. **P2-9**, grant number / license / companion repo name — same answer covers both repos.
 
 ---
 
-## 6. Context: `atmospheric_compensation.py` was dropped — this was correct
+## 7. Context: `atmospheric_compensation.py` was dropped — this was correct
 
 Recorded because the reasoning is non-obvious and shouldn't be re-litigated.
 
@@ -249,8 +511,8 @@ in-scene tarps, not atmospheric compensation.
 **One genuine loss to be aware of.** The embedded coefficients are numerically different from
 the committed ones (`identical=False` for both gain and offset, both 343 bands). They are a
 separate calibration. If that calibration matters, preserve it as a second `.npy` pair under
-`data/calibration/` with a provenance note — do not keep the script. It remains recoverable
-from `research_species_mapping` history either way.
+the shipped calibration directory with a provenance note — do not keep the script. It remains
+recoverable from `research_species_mapping` history either way.
 
 **Provenance, stated at its true confidence:** `.npy` files store only dtype and shape, and
 `CalPanels.pkl` records no source-image field, so neither set is self-identifying.
@@ -267,27 +529,63 @@ Also dropped and **correctly so**: `analysis_2025_Greenhead_HWref_to_2PNLref.ipy
 
 ---
 
-## 7. Verification recipe
+## 8. Small defects found *in* `upwins-veg-classifier` — for parity  **[new]**
+
+Found while reviewing it as the consistency baseline. Not this repo's bugs, and none are
+blocking, but they should be fixed there so the pair ships clean. Listed here because this is
+the live handoff document; move them to that repo's tracker if you prefer.
+
+1. **`README.md` says "run the two notebooks in order"** (twice — in the Quickstart and in
+   the Layout block's `notebooks/` line) but the table below it lists **three**. The third,
+   `03_display_classification.ipynb`, was evidently added later. Say "three".
+2. **The Layout block claims `docs/` holds "executed HTML exports of the notebooks."**
+   `docs/` contains only `data.md`, `model_card.md` and `recording_runbook.md` — no HTML.
+   The exports are an *action item* in that repo's runbook §4 ("Export executed copies to
+   `docs/`"), not a shipped artifact. Either produce them or drop the claim; as written it
+   is the same class of false promise as P0-2 here.
+3. **The Layout block describes `models/example_model_v1/` as "The trained model bundle
+   (model + scaler + label maps + wavelengths)".** That directory contains only a `README.md`
+   and a `model_card.md` pointer — the four bundle files are not committed, and the directory's
+   own README says "Running `notebooks/01…` writes the trained bundle here." So notebook 02
+   cannot run from a fresh clone. This is that repo's half of decision §6.1 and should be
+   answered with it.
+
+---
+
+## 9. Verification recipe
 
 To re-verify after fixes (a throwaway venv is enough; the pinned requirements install clean):
 
 ```bash
-python3 -m venv /tmp/v && /tmp/v/bin/pip install -r requirements.txt
-# P0-1: must now succeed from the notebooks/ directory
+python3 -m venv /tmp/v
+/tmp/v/bin/pip install -r requirements.txt
+/tmp/v/bin/pip install -e .            # P0-1(a): puts upwins_hsi + hsiViewer on the path
+
+# P0-1(b): must now succeed from the notebooks/ directory
 cd notebooks && /tmp/v/bin/python -c "
-import os,sys; from pathlib import Path
+import sys; from pathlib import Path
+import yaml, pickle, numpy as np
 r=Path.cwd()
 while not (r/'config.yaml').exists() and r!=r.parent: r=r.parent
-os.chdir(r); sys.path.insert(0,str(r))
-import yaml, pickle, numpy as np
-C=yaml.safe_load(open('config.yaml'))
-print('gain', np.load(C['paths']['gain']).shape)
-print('rois', pickle.load(open(C['paths']['cal_panel_rois'],'rb')).names)
+C=yaml.safe_load(open(r/'config.yaml'))
+import hsiViewer.hsi_viewer_ROI          # required to unpickle CalPanels.pkl
+from upwins_hsi import utils
+print('gain', np.load(r/C['paths']['gain']).shape)
+print('rois', pickle.load(open(r/C['paths']['cal_panel_rois'],'rb')).names)
 "
 ```
+
+Note the test does **not** `chdir` and does **not** touch `sys.path` — if it passes without
+them, P0-1 is genuinely fixed rather than papered over.
 
 PyQt5 imports fine headless with `QT_QPA_PLATFORM=offscreen`; only the interactive viewer
 windows in notebooks 01/03 need a real display.
 
-**Suggested order:** P0-1 first (nothing else is testable until notebooks run), then the §5
-decisions, then P0-2 to match whatever was decided, then P1.
+Also verify the container half of P0-3 before shipping: build the devcontainer with the
+corrected mount target and confirm the shipped calibration set is still visible inside it
+(`ls examples/calibration/`). If anything the notebooks need is still under `data/`, it will
+be gone.
+
+**Suggested order:** P0-1(a) packaging → P1-5 (config key shape, since P0-1(b) depends on it)
+→ P0-1(b) path resolution → P0-3 (the `examples/` move, which also closes P1-6) → the §6
+decisions → P0-2 and P1-10 docs to match whatever was decided → P1-3, P1-4 → P2.
