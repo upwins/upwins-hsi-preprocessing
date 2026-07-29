@@ -1,9 +1,11 @@
 # Repo audit (alternate) — status against `main`
 
-This is the **shelved** audit of `upwins-hsi-preprocessing` — the fuller, more
-aggressive one in `docs/audit_plan.md`, whose Phase 2/3 correctness findings the
-owner set aside as out of scope. It is preserved here, unchanged in substance,
-but with a **status column checked against the current `main`**.
+This is the **status record of the shelved, fuller audit** of
+`upwins-hsi-preprocessing` — the more aggressive pass whose Phase 2/3
+correctness findings the owner set aside as out of scope. Every finding it
+raised (the A/B/C items below) is restated here with its own evidence, now
+carrying a **status column checked against the current `main`**, so this
+document stands on its own.
 
 `main` was cleaned up under a *different, slimmer* audit — `AUDIT_HANDOFF.md`,
 which focused on packaging (making the repo run from a clone) and consistency
@@ -272,8 +274,8 @@ Minor.
 
 > **Still out of scope — a proposal, not implemented.** This section records the
 > design so the decision to defer B7 is made with a concrete remedy in view. It
-> supersedes the terse "wavelength guard" that the original `docs/audit_plan.md`
-> proposed under Phase 3; the reasoning for the change is kept below so the
+> supersedes the terse "wavelength guard" that the original shelved audit
+> proposed under its Phase 3; the reasoning for the change is kept below so the
 > discarded option is not re-proposed.
 
 ### The fact that reframes B7: the collection is the unit, not the image
