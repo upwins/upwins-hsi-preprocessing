@@ -174,7 +174,9 @@ Notebook 01 cell 12 still reads panel spectra straight from the pickle
 band axis was added (the alternate plan's Phase 3 proposed exactly that). Re-run
 notebook 01 on a new collect of the same sensor without re-drawing the ROIs and
 you silently recompute the *previous* collect's calibration. `CalPanels.pkl` is
-byte-identical, so this is unchanged. Not covered by the slimmer audit.
+byte-identical, so this is unchanged. Not covered by the slimmer audit. **A
+whole-collection-aware remediation proposal is worked out below —
+see [Proposed remediation for B7](#proposed-remediation-for-b7).**
 
 **B8 — the mid tarp is 98.6 % saturated. Status: Open.**
 Notebook 01 cell 14 still uses `int(0.97 * np.max(panel_mid_spectra))` as the
@@ -264,6 +266,146 @@ that file is removed, nothing in the shipped tree records the historical change.
 Minor.
 
 ---
+
+## Proposed remediation for B7
+
+> **Still out of scope — a proposal, not implemented.** This section records the
+> design so the decision to defer B7 is made with a concrete remedy in view. It
+> supersedes the terse "wavelength guard" that the original `docs/audit_plan.md`
+> proposed under Phase 3; the reasoning for the change is kept below so the
+> discarded option is not re-proposed.
+
+### The fact that reframes B7: the collection is the unit, not the image
+
+The cal-panel ROIs are not tied to a single image — they are a **whole-collection
+artifact**. The tarps are imaged once per collection; `CalPanels.pkl` is that
+collection's cal *measurement*; and the fitted `gain`/`offset` are then applied
+to **every other image collected in the same session** (same illumination,
+exposure and sensor config), most of which contain no tarps at all. That reuse is
+the entire point of the empirical-line method and is **correct** — nothing should
+guard against it.
+
+Two consequences follow, and they redirect the fix:
+
+1. **The reuse happens on the apply side.** Notebook 02 and the batch script
+   consume `gain.npy`/`offset.npy`; they never touch `CalPanels.pkl`. So any
+   guard that protects the *many-images* workflow has to live there, not in the
+   fit.
+2. **The pickle is self-contained.** Its DataFrame carries both the tarp DN
+   (`df.iloc[:, 4:]`) **and** the band axis (`df.columns[4:]` — the 343
+   wavelength columns, 399.10–1000.35 nm). In the *reuse* path, notebook 01 opens
+   the cal image only to read `im.wl`, which the pickle already contains; the
+   image's pixels never enter the fit.
+
+### The hard limit: same-sensor cross-collection reuse is invisible in the bytes
+
+When two collections use the same sensor and the same band grid — the common
+"next deployment" case — there is **no data-derived signal** that distinguishes
+collection A's calibration from collection B's. Not in the fit (the reuse path's
+only image input, `im.wl`, is identical), and emphatically not at apply time (the
+images being converted have no tarps to check against). This is the load-bearing
+fact: **B7's silent case cannot be closed by any self-consistency check — only by
+explicit provenance.** Everything below is arranged around that.
+
+### Why the obvious fit-time check is *not* the answer (recorded so it isn't re-proposed)
+
+An earlier revision of this analysis proposed a fit-time self-consistency check:
+re-read the tarp pixels from the cal image and refuse if they don't reproduce the
+pickle's stored DN. **Reject this as the centrepiece.** It only has value if the
+cal image is a source of truth to validate the pickle against — but in the reuse
+path the cal image contributes nothing the pickle doesn't already carry (just
+`im.wl`), so the check validates the pickle against a redundant input. It also
+cannot catch the same-sensor cross-collection case (identical band axis passes),
+which is precisely the silent one. It is ceremony, not safety. The single-line
+*wavelength* guard from the original Phase 3 is weaker still — it catches only a
+different sensor/band-count, i.e. the loud case that already tends to `IndexError`
+on its own.
+
+### The remediation — four steps plus the provenance follow-on
+
+Ordered simplest-first. Steps 1–4 are the cleanest-simple fix; step 5 is what it
+takes to close the same-sensor case and is the one format change.
+
+1. **Make each collection a self-contained bundle.** Keep the ROI pickle *and*
+   `gain.npy` *and* `offset.npy` together in that collection's `calibration_dir`.
+   `main` already put gain/offset there (per collection, gitignored, with a
+   committed seed); extend the same pattern to the pickle. A `calibration_dir`
+   then represents a *collection*, and everything the fit produced for it travels
+   together.
+
+2. **Drive the fit's band axis from the pickle; drop the load-bearing cal-image
+   dependency in the reuse path.** Source `wl` for the fit and the library
+   resample from `cal_panel_rois.df.columns[4:]` instead of from a separately
+   opened cal cube. This removes B7's "wrong image" surface *outright* rather than
+   guarding it, and it has two useful side effects:
+   - Notebook 01's fit becomes runnable **from a clone** using only the committed
+     calibration set — it no longer needs the raw cal cube, which does not ship
+     (this is also finding A1b's blocker for notebook 01).
+   - Re-fitting a collection reproduces *that collection's* bundle deterministically,
+     instead of depending on which image an operator happened to open.
+
+   The cal image is still needed for the one step that genuinely requires it —
+   drawing **new** ROIs in the viewer (`hvr.viewer(im, …)`, cell 10). In that step
+   the image and the pickle match by construction, so B7 cannot arise there.
+
+3. **A missing per-collection ROI pickle is a loud error, not a silent seed
+   fallback.** The gain/offset seed fallback that `main` added is a reasonable
+   convenience for *applying* the shipped example; it is the wrong behaviour for
+   *fitting* a real collection, because falling back to the committed
+   `examples/calibration/CalPanels.pkl` is exactly the B7 trap. Notebook 01 should
+   stop and say "draw the cal-panel ROIs for this collection" when the
+   collection's own pickle is absent. You draw ROIs once **per collection**, never
+   per image.
+
+   ```python
+   # notebook 01 — fit input is the collection's own ROI pickle; no silent
+   # fallback to the shipped example (that would re-fit the example's tarps, B7).
+   roi_path = os.path.join(CONFIG['paths']['calibration_dir'], 'CalPanels.pkl')
+   if not os.path.exists(roi_path):
+       raise FileNotFoundError(
+           f"No CalPanels.pkl in {CONFIG['paths']['calibration_dir']}. Draw the "
+           "cal-panel ROIs on THIS collection's cal image (viewer cell) and save "
+           "them here before fitting — do not reuse another collection's ROIs.")
+   ```
+
+4. **Put the one guard that rides with the whole-collection workflow at APPLY
+   time.** For every tarp-free image the collection converts, check the band grid
+   before applying — this is finding **B2**, and it is the check that scales to
+   "the other images collected in the same context." It catches a sensor/band
+   mismatch (the only thing checkable without tarps) and protects the many-images
+   reuse directly.
+
+   ```python
+   # notebook 02 / batch — the collection's gain/offset only fit one band grid.
+   if len(gain_full) != len(wl):
+       raise ValueError(
+           f"Calibration has {len(gain_full)} bands but {fname} has {len(wl)}. "
+           "gain.npy/offset.npy are valid only for the sensor/band configuration "
+           "they were fitted on — re-run notebook 01 for this collection.")
+   ```
+
+5. **The only thing that closes the same-sensor cross-collection case: an explicit
+   collection tag.** Since no data-derived check can catch it (see the hard limit
+   above), stamp the collection identity — the cal-image or session name — into
+   the saved bundle, and echo it into the reflectance ENVI header on conversion.
+   Then `raw_59000_or_ref` visibly records that it was made with, say,
+   `Morven_20250708`'s calibration, and a human (or a one-line check) can verify
+   provenance instead of trusting a directory name. This is a small **metadata
+   addition**, not a one-liner, so it is not the *simplest* step — but given
+   whole-collection reuse it is the piece that turns "trust the directory" into
+   "verify the provenance." It is the same item the plan's Future-work list
+   defers as "platform / source as ROI metadata," now with a concrete motivation.
+
+### Net
+
+The cleanest-simple fix is steps 1–4: **treat the collection as the self-contained
+unit (pickle + gain + offset in one per-collection `calibration_dir`), drive the
+fit's band axis from the pickle so the stale-cal-image coupling disappears, make a
+missing per-collection pickle a loud error, and guard the apply side with a
+band-grid check.** Step 5 (an explicit collection tag in the bundle and the
+reflectance header) is the follow-on that also covers the same-sensor
+cross-collection case, at the cost of one metadata-format change. None of this is
+implemented; B7 remains **Open** and out of scope until the owner picks it up.
 
 ## Bottom line
 
