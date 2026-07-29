@@ -423,3 +423,531 @@ addressed by the slimmer audit that guided `main`; B1 and B8 were seen there and
 consciously left alone. Keeping them shelved is a defensible call — but it is now
 a call made against the *current* tree, which is what this document exists to
 make possible.
+
+---
+
+## Appendix — Preserved remediation plan from the shelved audit
+
+> **Why this is here.** The full remediation **Plan (Phases 0–6)** and
+> **Appendices A/B** below are lifted verbatim from the original shelved audit
+> (`audit_plan.md` as it stood at `be9923e`), consolidated into this document so
+> the guidance survives deletion of the audit branches. Nothing in it has been
+> re-written for the current tree.
+>
+> **Read it with two adjustments in mind:**
+> 1. **Status is as-originally-written** — every phase says "Proposed" and the
+>    verdict says "nothing implemented." That was true at `be9923e`. For what has
+>    actually landed on `main` since, use the **Status at a glance** table at the
+>    top of this document — several of these phases are now Done, Partial, or
+>    deliberately Deferred.
+> 2. **Paths and cell numbers are pre-cleanup.** The cleanup relocated
+>    `utils.py → src/upwins_hsi/utils.py`, `hsiViewer/ → src/hsiViewer/`, and
+>    `data/calibration/ → examples/calibration/`, and lightly shifted notebook
+>    cell indices. Translate references accordingly.
+>
+> Two sections of the original — "What was verified" and "What I need from you"
+> — were **not** carried over (a verification log and a decisions letter, both
+> superseded by the status table above). Ask if you want them preserved too.
+
+### Plan
+
+Each phase is one commit; phases are independent, so you can approve any subset.
+
+#### Phase 0 — Undo the handoff regressions (A1a, A2, C6, C7a) — do this first
+
+Everything here is a **handoff** finding: the original repo did not have these
+problems, and fixing them restores accuracy rather than changing behavior. No
+numbers move, no decision is needed from you, and nothing is blocked on the B8
+question. This is the natural first commit — it makes the repo honest before
+anything touches the calibration.
+
+- **A1a / C7a — stop claiming a from-clone run.** Three files:
+  `README.md:23-24`, `data/README.md:7`, and `config.yaml:5-6` (a header comment,
+  easy to miss). Say plainly that imagery is distributed separately and point at
+  `data/sample/README.md`, which already says the right thing. While in
+  `data/README.md`, drop "small" for the calibration set or state that it is
+  ~14 MB and that `CalPanels.pkl` is the bulk of it.
+- **A2 — make the example images chain.** One line: set `reflectance_image` to
+  what notebook 02 actually writes (`raw_34850_or_ref.img`), or change
+  `raw_image` to `raw_4000_or`. Either is fine while no data ships; pick to match
+  whatever Phase 1 eventually supplies.
+- **C6 — delete nb 01 cells 3 and 9** (the red-HTML notes that the cells beneath
+  them contradict) and fix the three typos in cell 15 (`saturation_trheshold`,
+  "poixels" ×2, "so choose").
+
+Do C6 even if you skip everything else in this phase. Those two cells are the only
+place in the repo that tells a reader to do something the next cell tells them not
+to.
+
+#### Phase 1 — Ship a runnable sample (A1b) — needs you, and optional
+
+Distinct from Phase 0 and lower priority than the original draft of this audit
+implied. `research_species_mapping` never ran from a clone and never claimed to,
+so shipping a sample cube gives the client something that has never existed — an
+enhancement, not a repair. Phase 0 already closes the honesty gap.
+
+If you want it: supply a cropped raw cube containing the tarps, plus one small raw
+cube to convert. I commit them, verify `git check-ignore` passes them, and
+reconcile `config.yaml` so nb 01 → 02 → 03 chains on the same image. A cropped cube
+of a few hundred rows is enough — the point is that the notebooks execute, not
+that the scene is complete.
+
+If you don't, nothing further is needed: Phase 0's reword already leaves the docs
+accurate.
+
+#### Phase 2 — Fix the reflectance conversion (B1, B2, B3) — recommended first
+
+**The change.** In notebook 02 cell 9 and `batch_convert_reflectance.py:67`:
+
+```python
+# before
+imRef[:, :, i] = (gain[i] * np.squeeze(im.read_band(b) + offset[i]) * mask).astype(np.float32)
+# after
+imRef[:, :, i] = ((gain[i] * np.squeeze(im.read_band(b)) + offset[i]) * mask).astype(np.float32)
+```
+
+The `* mask` stays outside so no-data pixels still come out as exactly 0 —
+without that, the offset would write a non-zero value into every masked pixel
+and break the `band0 > 0` mask convention that notebooks 02/03 and the
+classifier all rely on.
+
+Alongside it, two small guards:
+
+```python
+# B2 — the coefficients are position-indexed; they only fit one band grid.
+if len(gain_full) != len(wl):
+    raise ValueError(
+        f"Calibration has {len(gain_full)} bands but {fname} has {len(wl)}. "
+        "gain.npy/offset.npy are only valid for the sensor configuration they "
+        "were fitted on — re-run notebook 01 for this collection."
+    )
+
+# B3 — keep the full arrays, subset into new names (the batch script's pattern).
+gain = gain_full[indices]
+offset = offset_full[indices]
+```
+
+Notebook 02 cell 3 becomes `gain_full = np.load(...)` / `offset_full = np.load(...)`,
+so cell 9 can be re-run freely.
+
+**What this costs you.** Every existing `*_ref` product is biased, and so is any
+model trained on ROIs drawn from one. After this lands you have three options,
+and this is a decision I need from you:
+
+1. **Reprocess and retrain.** Correct, and the classifier repo is already going
+   to be retrained (its Phase 4b changed the split), so the marginal cost is
+   re-running the batch script over your archive.
+2. **Reprocess going forward only.** Cheapest, but then old and new reflectance
+   products differ and must never be mixed in one training set. If you take
+   this, the version has to be recorded somewhere the classifier can see —
+   otherwise it is exactly the silent-drift problem the classifier's Phase 2
+   just fixed on the normalization side. **The archive is not one uniform
+   thing**, which strengthens the warning: per C10, anything produced by the
+   original `atmospheric_compensation.py` was biased by `gain·offset` on the
+   *Greenhead* coefficients, not the committed Morven ones — a different
+   magnitude, and a different sign across the blue end. "Old products are all
+   ~0.015 high" is true of this repo's products, not of everything you have.
+3. **Decide the current behavior is what you want** — i.e. treat the calibration
+   as gain-only through the origin. Defensible for a two-point fit with a forced
+   origin, but then notebook 01 should stop fitting an intercept it discards
+   (`fit_intercept=False`), rather than computing one and quietly dropping it.
+
+I recommend (1), with (3) as the honest fallback if reprocessing is impractical.
+What is not acceptable is leaving fit and application disagreeing.
+
+**Risk:** the numbers move. Reflectance drops by ~0.015 in most bands. Spectra
+plotted from new products will not overlay old ones.
+
+#### Phase 3 — Say what the calibration actually does (B4, B7, B8)
+
+Documentation, dead-branch removal, and three guards. No numbers change — but
+the B7 guard will start refusing runs that used to "succeed", which is the point.
+
+(C6 was originally grouped here. It has nothing to do with the calibration and is
+not blocked on the B8 question, so it moved to Phase 0.)
+
+- Delete the `use_all_regions` / `thm` branch in nb 01 cell 32. It cannot run.
+- State in cell 31's markdown that the fit uses **two tarps plus a forced
+  origin** — dark and med — and that the high tarp is shown for context only.
+  Either that, or add it to the fit (a real change; see Future work). Right now
+  a reader reasonably assumes all three are used.
+- Add a short **"What this calibration is tied to"** block to
+  `docs/recording_runbook.md` and link it from the README. Content is in
+  Appendix A below; the hard dependencies (tarp library naming, ROI names, band
+  grid, illumination, two-tarp range, and the reuse scope in Appendix B) are all
+  invisible in the code today and each fails silently.
+- Note in cell 15's markdown how many pixels the saturation filter dropped, and
+  print it — see the B8 guard below.
+
+Three of those failures are worth a guard rather than only a sentence:
+
+```python
+# nb 01 cell 24 — a library whose names don't contain 'dark'/'med' yields
+# empty lists, and np.mean of an empty array gives NaN gains with no error.
+for label, idx in (('dark', idx_l), ('med', idx_m), ('high', idx_h)):
+    if not idx:
+        raise ValueError(f"No spectra matching '{label}' in {fname_sli}.")
+
+# nb 01 cell 13 — the ROI names are literal strings.
+for roi_name in ('Cal Panel Low', 'Cal Panel Mid'):
+    if roi_name not in names:
+        raise ValueError(f"ROI '{roi_name}' not in {CONFIG['paths']['cal_panel_rois']}: {names}")
+
+# nb 01 cell 13 — B7. The pickle stores DN, not a region. Its column names are
+# the wavelengths of the image the ROIs were drawn on; if they don't match the
+# image opened in cell 5, the fit is about to use another collect's tarps.
+wl_roi = np.asarray(cal_panel_rois.df.columns[4:], dtype=float)
+if len(wl_roi) != len(im.wl) or not np.allclose(wl_roi, im.wl):
+    raise ValueError(
+        f"{CONFIG['paths']['cal_panel_rois']} holds spectra on a different band "
+        f"axis ({len(wl_roi)} bands, {wl_roi[0]:.1f}-{wl_roi[-1]:.1f} nm) than "
+        f"{fname} ({len(im.wl)} bands, {im.wl[0]:.1f}-{im.wl[-1]:.1f} nm). "
+        "Re-draw the cal-panel ROIs on this image."
+    )
+
+# nb 01 cell 15 — B8. Saturation is an exposure problem, not a software one;
+# the least this can do is refuse to fit a tarp that is mostly clipped.
+for label, before, after in (('low', panel_low_spectra_all, panel_low_spectra),
+                             ('mid', panel_mid_spectra_all, panel_mid_spectra)):
+    kept = len(after) / len(before)
+    print(f'{label} panel: {len(before)} -> {len(after)} pixels ({kept:.1%} unsaturated)')
+    if kept < 0.5:
+        raise ValueError(
+            f"{label} panel is {1 - kept:.1%} saturated. The fit would rest on the "
+            f"dimmest {kept:.1%} of the tarp, biasing gain high. Re-collect the cal "
+            "image at a lower exposure."
+        )
+```
+
+The B7 guard catches the loud case outright and, in practice, most of the silent
+one — two collects from the same sensor with identical band centers will slip
+through, so the runbook line matters too: **re-draw the cal-panel ROIs for every
+collect.** The B8 threshold of 50 % is a starting point, not a derived number;
+set it to whatever your good collects actually achieve.
+
+#### Phase 4 — ROI load loses its masks (B5)
+
+One line in `hsiViewer/hsi_viewer_ROI.py:523`: store the mask that was just read
+instead of an empty one.
+
+```python
+# before
+self.ROI_dict["ROI_num_"+str(self.ROI_Id_num_count)] = copy.deepcopy(self.ROImask_empty[:])
+# after
+self.ROI_dict["ROI_num_"+str(self.ROI_Id_num_count)] = np.reshape(mask, self.ROImask_empty.shape).copy()
+```
+
+**This needs a live test before it is trusted, and I cannot run one.** Two
+reasons: `saveROIs` applies a rotation to the mask when `rotate=True`
+(line 569), so a mask loaded back into a viewer opened with a different `rotate`
+setting may need the inverse transform; and `saveROIs` reads pixel spectra from
+`self.imList` for the *current* image, so loading ROIs drawn on a different
+image will silently re-extract spectra from the new one. Both want a check in
+front of the viewer with a real ROI file.
+
+While in the file, two adjacent nits worth folding in: both `loadROIs` and
+`saveROIs` use `QFileDialog.getSaveFileName` — so *loading* prompts with a save
+dialog and an overwrite warning — and both have a `try` whose body references a
+bare `im` that does not exist in method scope, so the `except` always fires and
+falls back to a hardcoded `C:\Spectra_data\Spectral_images`.
+
+If you would rather not touch the viewer at all, the alternative is a one-line
+warning in the docs: *do not load an existing ROI file to extend it; make a new
+one per session.* That is the lower-risk option and I would not argue against it.
+
+#### Phase 5 — Delete dead code (C1, C4, C5)
+
+No behavior change, ~1,100 lines removed.
+
+- **`utils.py` → `spatial_smoothing` only** (~55 lines with the docstring), plus
+  `numpy` and `copy`. Everything else is unreferenced; the geotiff functions are
+  additionally broken (C1).
+- **Drop `psutil==6.0.0` and `scipy==1.13.1` from `requirements.txt`.** Both were
+  added during the handoff, not inherited: `psutil` only to satisfy `utils.py`'s
+  dead import, `scipy` for nothing at all — it is imported nowhere in the repo.
+  Removing them reverts handoff additions rather than cleaning up legacy.
+
+  > **Ordering — do not remove `psutil` first.** `utils.py:7` is a *module-level*
+  > `import psutil`, so dropping the pin before the file is trimmed breaks
+  > `import utils` in notebook 02 and the batch script. Trim `utils.py` in the
+  > same commit, or before. `scipy` is safe to remove at any point.
+- **Delete `hsi_viewer.py`, `hsi_viewer_2.py`, `hsi_viewer_array.py`.** Keep a
+  one-line note in the README that the fuller viewer set lives in
+  `research_UPWINS_Microscene`, so nobody thinks they were lost.
+- **Trim each notebook's cell 1** to what that notebook uses. Notebook 03 drops
+  to `numpy`, `spectral`, `os`, `yaml`, `matplotlib` and `hvr` — the five
+  commented-out imports go with them, and so does `hlv`, which it never calls.
+
+Verify with `python -m pyflakes utils.py scripts/*.py hsiViewer/*.py` — it should
+come back clean, which makes it a usable signal from then on.
+
+#### Phase 6 — Devcontainer, docs, hygiene (C2, C3, C7b, C8, C9, C10)
+
+- **C2 — devcontainer mount.** Match what `upwins-veg-classifier` already does:
+  `source=${localEnv:HOME}/projects/upwins/data,target=/workspaces/upwins-hsi-preprocessing/data`.
+  Document in the README that the host path is a default and must be edited if
+  yours differs, and note the same gotcha the classifier's README now carries:
+  **the mount replaces the repo's `data/`, so committed `data/calibration/` and
+  `data/sample/` become invisible inside the container** unless the external
+  directory has its own copies. Also drop the commented-out `/home/gta/...`
+  line.
+- **C3 — devcontainer base image.** Recommend `python:3.11-slim` (or `3.12`) with
+  `python3-pyqt5` from apt, and drop `runArgs: ["--gpus","all"]`. That removes a
+  multi-GB pull and the requirement for an NVIDIA GPU on the host, for a repo
+  with no TensorFlow. If you would rather keep one image across both repos, say
+  so and I will leave it and add a comment explaining why it is heavier than it
+  looks. **Needs a real Docker build to verify** — PyQt5 in a slim image
+  sometimes needs extra X libraries (`libgl1`, `libxkbcommon-x11-0`).
+- **C7b — the demo overwrites tracked artifacts.** Add one line to the runbook's
+  pre-flight checklist: *running notebook 01 overwrites the committed
+  `gain.npy` / `offset.npy` — `git checkout data/calibration/` to restore them.*
+  (C7a, the docs overstatement, moved to Phase 0. If Phase 1 later ships a
+  sample, re-check that the README matches what actually ships.)
+- **C8 — kernelspec.** Set `display_name` to `Python 3` in
+  `01_calibrate_cal_panels.ipynb` and `02_convert_to_reflectance.ipynb`
+  — **those two only**. Notebook 03 and the legacy notebook already have it.
+  Leave their `language_info` alone: they record Python 3.12.3 against 01/02's
+  3.13.5, and normalizing that would produce a diff with no meaning.
+- **C10 — record the batch script's calibration source.** Two sentences, no code
+  change: note in `batch_convert_reflectance.py`'s docstring that the
+  coefficients come from `config.yaml` → `data/calibration/gain.npy` (i.e. from
+  notebook 01, per collect), and add a runbook line that this is a change from
+  the pre-handoff script, which carried a different collect's coefficients
+  inline. Anyone comparing new batch output against archived Greenhead products
+  needs to know this before they conclude something regressed.
+- **C9 — legacy notebook.** Three options, your call: leave it and add one line
+  to its banner noting it needs Python ≥ 3.12 to open and has an unfinished
+  final cell; fix the two lines so it at least parses everywhere; or delete it.
+  I lean toward the first — it is explicitly labelled superseded, and fixing code
+  nobody runs is its own kind of over-engineering.
+
+---
+
+### Appendix A — How the calibration works, and what it is tied to
+
+Written in response to your question, and the source for the doc block proposed
+in Phase 3. Contrasted with `research_UPWINS_Microscene`, which you know better.
+
+#### `research_UPWINS_Microscene` — white reference, per image
+
+From `1 UPWINS Mircoscene preprocesing.ipynb`, cells 14 and 20:
+
+1. A **dark cube** (lens cap on, collected alongside the scene) is averaged over
+   all pixels to a per-band dark spectrum, `image_dark_mean[b]`.
+2. The scene is cropped so a **white reference panel spans the full width** of
+   the image at the top; averaging over those rows gives `im_FPA[c, b]` — a
+   *(column, band)* array.
+3. Reflectance is then, per pixel:
+
+   ```
+   ref[r,c,b] = (DN[r,c,b] − dark[b]) / (FPA[c,b] − dark[b])
+   ```
+
+What that buys and costs:
+
+- **Per column.** The divisor varies with `c`, so cross-track illumination and
+  focal-plane non-uniformity — the characteristic pushbroom artifact — are
+  corrected.
+- **Relative, not absolute.** No known reflectance spectrum is ever used. The
+  panel is implicitly treated as 100 % reflective, so the output is reflectance
+  *relative to the panel* and any spectral structure in the panel is baked in.
+- **Self-contained per image.** Nothing is carried between images. Every scene
+  carries its own reference, so calibration cannot go stale.
+- **Requires the panel in every frame**, spanning the full width, plus a
+  matching dark collect. Manual per-image inputs: `crop_rows`, `crop_cols`,
+  `white_ref_rows`, and the dark directory.
+
+#### `upwins-hsi-preprocessing` — empirical line, fitted once and reused
+
+Notebook 01 fits, notebook 02 (or the batch script) applies:
+
+1. **Reference.** `data/calibration/cal_tarp_spectra.sli` — 19 ASD spectra,
+   350–2500 nm at 1 nm — resampled onto the image's band centers with
+   `spectral.BandResampler` (cell 7).
+2. **Measurement.** ROIs drawn on the low and mid tarps in one raw image that
+   contains them, saved as `CalPanels.pkl`. Spectra above `0.97 × max(mid panel)`
+   are dropped as saturated (cell 15), and each set is averaged (cell 17).
+3. **Fit.** Per band, `LinearRegression(fit_intercept=True)` over **three
+   points** — `(0, 0)`, `(low DN, dark tarp reflectance)`, `(mid DN, med tarp
+   reflectance)` — giving `gain[b]` and `offset[b]`, saved as 343-element arrays
+   (cells 32, 34).
+4. **Apply.** Drop the configured bad-band ranges, compute
+   `reflectance = gain·DN + offset` — *currently mis-parenthesized, finding B1* —
+   mask, smooth twice, write `<name>_ref`.
+
+What that buys and costs:
+
+- **Absolute reflectance**, because the tarps' true reflectance is known. This is
+  the main difference from Microscene.
+- **One coefficient pair per band for the whole frame.** No per-column term, so
+  cross-track non-uniformity is *not* corrected.
+- **No separate dark frame.** The regression's intercept absorbs the dark level
+  and path radiance together — which is exactly why B1 matters: dropping the
+  intercept drops the dark-current correction.
+- **Reused across images.** One fit serves a whole collect, which is what makes
+  the batch script possible — and what makes the calibration go stale if
+  conditions change.
+
+#### Side by side
+
+| | Microscene | upwins-hsi-preprocessing |
+|---|---|---|
+| Reference | White panel in every scene | ASD-measured tarps, in one scene |
+| Known reflectance? | No — panel assumed 1.0 | Yes — from the `.sli` library |
+| Output | Relative reflectance | Absolute reflectance |
+| Dark handling | Explicit dark cube, subtracted | Folded into the fitted intercept |
+| Cross-track correction | Yes, per column | No, one gain/offset per band |
+| Scope of a calibration | One image | One collect (many images) |
+| Reusable artifact | None | `gain.npy` / `offset.npy` |
+| Manual inputs | Crop rows/cols, white-ref rows, dark dir | Two tarp ROIs, drawn once |
+
+#### Yes — it is tied to a specific panel set and configuration
+
+Five ways, and **four of them fail silently**:
+
+1. **The tarp library.** `cal_tarp_spectra.sli` is one specific set — spectra are
+   named `tarp_near_7321-003-29_{dark,high,med}`. Cell 24 selects by substring
+   `'high'` / `'med'` / `'dark'` in the name. A library using different names
+   produces empty index lists, `np.mean` of an empty array, and **NaN gains with
+   no error**.
+2. **Two tarps, not three.** Only dark and med enter the fit. The high tarp is
+   loaded, averaged and plotted, then unused (B4). The fit's dynamic range
+   therefore tops out at the mid tarp's brightness, and anything brighter — dry
+   sand, specular vegetation — is extrapolated.
+3. **The ROI names.** Cell 13 filters `df['Name'] == 'Cal Panel Mid'` and
+   `'Cal Panel Low'`, literal strings. A differently-named ROI yields an empty
+   array and, again, no error.
+4. **The band grid.** `gain.npy` / `offset.npy` are 343-element and
+   *position*-indexed. They are valid only for images with that exact band count
+   and ordering. Both consumers index them using indices derived from the
+   *target* image's wavelengths, so a different sensor configuration misaligns
+   silently (B2).
+5. **The illumination.** The empirical line absorbs illumination geometry and
+   exposure into the coefficients. Reuse is valid only within one collect under
+   stable lighting — which is why the artifact is per-collect, not per-project.
+
+Points 1, 3 and 4 are the two-line guards in Phase 3; point 2 is a sentence in
+the notebook; point 5 is a line in the runbook.
+
+#### What this repo needs to work properly
+
+**Software.** Python (the notebook metadata says 3.13; the devcontainer base
+ships its own) and the pins in `requirements.txt`: `numpy`, `scipy`,
+`scikit-learn`, `pandas`, `spectral`, `matplotlib`, `PyYAML`, plus `PyQt5` /
+`PyQt5-sip` / `pyqtgraph` for the viewer. `psutil` is only there for a dead
+import in `utils.py` (C1). Notebooks 01 and 03 need a **real display session** —
+they open a Qt window. Everything must be launched **from the repo root**:
+`import utils`, `from hsiViewer import ...` and `open('config.yaml')` are all
+root-relative.
+
+**Data, none of which ships.** ENVI cubes (`.img` + `.hdr`) whose headers carry
+band centers; one raw cube containing the tarps; one or more raw cubes to
+convert. What *does* ship is the calibration set: the tarp `.sli`/`.hdr`, the
+tarp ROI pickle, and fitted `gain`/`offset`.
+
+**Implicit data conventions** that everything downstream assumes: reflectance is
+written as unscaled float32 in 0–1 (no `reflectance scale factor` in the
+header); no-data is 0; and the valid-data mask is `band 0 > 0`.
+
+**The contract with `upwins-veg-classifier`.** The handoff is the ROI `.pkl`
+file, which is a pickled `hsiViewer.hsi_viewer_ROI.ROIs_class` whose `.df` has
+columns `Name`, `Color`, `Pixel_x`, `Pixel_y`, then **one column per wavelength**.
+The classifier reads `df.iloc[:, 4:]` for spectra and takes the wavelength axis
+from `df.columns[4:]`, so the band grid travels with the ROI file — which means
+this repo's `reflectance.bbl_wl_ranges` setting is part of the contract. (The
+classifier resamples each ROI file onto a reference axis, so mixing files made
+with different bad-band settings degrades rather than breaks. Worth recording in
+the runbook either way.) Two further requirements:
+
+- **ROI names must follow the ASD library convention** (`Ammo_bre_...`) — that
+  is how the classifier parses labels, via `upwins_veg.roi_labels`. Notebook 03's
+  markdown already says this; the runbook repeats it.
+- **Filenames carry processing semantics.** The classifier's
+  `is_piloted_source()` decides pixel-wise normalization by matching
+  `"crisfield"` / `"piloted"` anywhere in the ROI filename. Renaming a file
+  changes how it is preprocessed. The classifier's audit lists moving that into
+  ROI metadata as future work, and **this repo is where that metadata would have
+  to originate** — `ROIs_class` has no field for it today. Not proposed here; it
+  is a two-repo change and neither is ready for it.
+
+---
+
+### Appendix B — What to redo per collect, and what to keep
+
+The three calibration inputs have three different lifetimes. Conflating them is
+how B7 happens. This table is the intended source for the runbook block proposed
+in Phase 3.
+
+| Artifact | Redo when | Why |
+|---|---|---|
+| `cal_tarp_spectra.sli` — ASD tarp library | **Rarely.** Only when the physical tarps change. | It holds *reflectance*, an intrinsic material property. Independent of illumination, sensor and geometry, and resampled onto the image band centers at runtime (cell 7) — so it is portable across collections *and* across sensors. The most reusable artifact in the repo. |
+| `CalPanels.pkl` — cal-panel ROIs | **Every collect.** | It is not a region definition; it stores measured **DN** (finding B7). Reusing it re-fits the previous collect's tarps and, on a matching band grid, does so silently. |
+| `gain.npy` / `offset.npy` | **Every collect.** | They absorb illumination, exposure and dark level — see the five dependencies in Appendix A. Valid for one session under stable lighting; that is the scope the batch script is built for. |
+
+**What eventually invalidates the library**, despite "rarely": dust, dirt, UV
+fading, wear, and wetness (which changes NIR/SWIR reflectance sharply). Re-measure
+periodically with the ASD. Note the committed library records **no acquisition
+date** — the spectra are named `tarp_near_7321-003-29_{dark,med,high}`, a serial
+with no date — so there is currently no way to tell how old the reference
+measurements are. A date in the filename or the `.hdr` description would fix that
+for the cost of one edit, and is worth doing at the next re-measurement.
+
+**One caveat that applies even to a valid library.** The ASD measures the tarps
+at one geometry; the airborne sensor views them at another, under a different
+solar angle. Tarps are not perfectly Lambertian, so the effective reflectance at
+the sensor differs slightly from the library value, and that difference *is*
+collection-dependent. Second-order for this project's purposes, but it is the
+reason the same library can be genuinely reusable and still contribute a small
+per-collect bias. Not worth acting on; worth knowing before chasing a few
+percent of disagreement.
+
+---
+
+### Open questions (unresolved; not blocking any phase)
+
+- **Is the high-reflectance tarp deliberately excluded from the fit, or was it
+  dropped along the way?** It is read, averaged and plotted, which suggests it
+  was once intended to be used. Including it would extend the fit's range to
+  bright targets; excluding it may have been a deliberate response to saturation
+  on the high tarp — which B8 makes considerably more plausible, since the *mid*
+  tarp is already 98.6 % clipped and the high tarp would be worse. If that is the
+  reason, then the exposure was set for the dark tarp and the calibration has
+  effectively been a one-tarp fit through a forced origin for some time. You will
+  know. The answer decides whether B4 is a documentation fix or a real change.
+- **Was `0.97 × max(mid panel)` chosen as a saturation threshold, or inherited?**
+  On the committed data `max(mid panel)` is 4094, one count below 12-bit
+  saturation, so the threshold lands at 3971 — it happens to work here *because*
+  the panel is clipped. On a properly exposed cal image the same expression would
+  scale to 97 % of whatever the tarp's brightest pixel happened to be and discard
+  a slice of perfectly good data. A fixed threshold from the sensor's bit depth
+  (e.g. `0.97 × 4095`) would be stable in both cases and is a one-line change;
+  worth folding into Phase 3 if you agree.
+
+### Future work (deliberately deferred, not oversights)
+
+- **Platform / source as ROI metadata.** `ROIs_class` carries no provenance, so
+  the classifier infers it from filenames. Adding a field here is the upstream
+  half of an item already on the classifier's future-work list. Deferred: it is a
+  coordinated two-repo change and would invalidate every existing ROI pickle.
+- **Record the calibration in the reflectance header.** Writing the gain/offset
+  source (and, after Phase 2, the formula version) into the output ENVI metadata
+  would let anyone tell a corrected product from an uncorrected one. Deferred
+  for the same reason the classifier deferred recording preprocessing in the
+  model bundle: it changes an artifact format to guard a case that has happened
+  exactly once.
+- **Re-apply the mask after smoothing (B6).** A one-line fix, but it changes
+  every reflectance product's edge pixels, so it belongs with a reprocessing
+  decision rather than ahead of one. If Phase 2 option (1) is chosen, fold it in
+  there.
+- **Per-column calibration.** The Microscene approach corrects cross-track
+  non-uniformity; the empirical line does not. Whether that matters for this
+  sensor is an empirical question, and answering it needs a flat-field collect.
+
+### Out of scope unless you ask
+
+Tests and CI (the classifier repo declined these on 2026-07-27; keeping both
+repos consistent). Restructuring the notebooks. Packaging the repo — `utils.py`
+at the root and `hsiViewer/` as a namespace package both work, and the
+run-from-root requirement is documented. Rewriting `spatial_smoothing`, which is
+correct for what it does. Anything about the tarps themselves or the collection
+protocol.
