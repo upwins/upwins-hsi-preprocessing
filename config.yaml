@@ -2,18 +2,13 @@
 # Configuration for the UPWINS hyperspectral preprocessing project.
 # Edit paths/parameters here rather than in the notebooks. Paths are relative
 # to the repo root; the notebooks resolve them from there (so Jupyter can be
-# launched from either the repo root or the notebooks/ folder). A small
-# calibration set ships under examples/calibration/ so notebooks 02-03
-# reproduce from a clone.
+# launched from either the repo root or the notebooks/ folder).
 # ==========================================================================
 
 paths:
   # ------------------------------------------------------------------------
-  # ENVI image cubes are given as a pair: the image file and its header. Raw
-  # cubes from the sensor have no extension on the image file; reflectance
-  # products written by spectral.envi.save_image get .img. Naming both files
-  # explicitly keeps each case literal instead of guessed. Both entries of a
-  # pair must name the same cube (the notebooks assert this).
+  # ENVI image cubes are given as a pair: the image file and its header. Both
+  # entries of a pair must name the same cube (the notebooks assert this).
   # ------------------------------------------------------------------------
 
   # --- Notebook 01: raw image containing the cal panels ---
@@ -51,7 +46,7 @@ paths:
   # offset.npy and the panel_*_spectra.npy intermediates INTO this directory;
   # notebook 02 and the batch script read gain.npy/offset.npy FROM it. Point it
   # at a per-collection directory under data/ (gitignored) so each collection
-  # keeps its own coefficients and a re-run never clobbers another collection's.
+  # keeps its own coefficients.
   calibration_dir: data/calibration/example
 
   # Shipped seed calibration (committed, read-only). When calibration_dir has no
