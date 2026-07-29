@@ -25,6 +25,46 @@ copy those solutions rather than invent new ones.
 
 ---
 
+## Implementation status vs `main` — added 2026-07-29
+
+> **Status overlay.** The findings below were implemented on branch
+> `claude/audit-handoff-review-4vpded` and are now on `main`. This table records
+> each item's state **verified directly against `origin/main`** (`git show` /
+> `grep` over the committed tree), so this working document reflects what
+> actually shipped, not just what was planned. Every `P*` heading also carries an
+> inline **Status** line.
+>
+> Legend — ✅ **Done** (implemented on `main`) · ⛔ **Deferred** (a live owner
+> decision, intentionally left as-is) · 🔲 **To do** (still open — owner input or
+> a follow-up commit).
+
+| Item | Covers | Status on `main` |
+|---|---|---|
+| P0-1 | `src/` layout, `pyproject.toml`, `REPO_ROOT` walk-up | ✅ Done |
+| P0-2 | README's from-clone claim | ⛔ Deferred (§6b-1) — still false, and now also points at the old `data/calibration/` path |
+| P0-3 | `examples/` move, `data/` gitignored in full | ✅ Done |
+| P1-3 | Devcontainer (mount, base image, `postCreateCommand`) | ✅ Done |
+| P1-4 | Config chains; nb02 save-cell leak fixed | ✅ Done |
+| P1-5 | Explicit `image` / `image_hdr` pairs + mismatch guard | ✅ Done |
+| P1-6 | Notebook 01 outputs to gitignored `calibration_dir` | ✅ Done |
+| P1-10 | `docs/data.md`, `examples/README.md`, README Layout + devcontainer subsection | ✅ Done |
+| P2-7 | `gain = gain[indices]` re-run hazard — comment | ✅ Done (comment added) |
+| P2-8 | Reflectance formula `gain*(counts+offset)` | ⛔ Deferred (§6b-2) — untouched by design; a science decision |
+| P2-9 | Grant / license / companion-name assertions | 🔲 To do — one owner confirmation; unchanged, matches companion |
+| P2-11 | Red-HTML "change the dir/fname" cell in nb01 | ✅ Done (removed) |
+| §6c-4 | Preserve the dropped second (Greenhead) calibration? | 🔲 Owner decision — default taken (not preserved; recoverable from history) |
+| §6c-5 | Dataset download link / DOI for `docs/data.md` | 🔲 To do — `TODO (data owner)` marker carried across |
+| §8 | Companion-repo defects | ⛔ Out of scope here — separate session |
+| — | **Delete this working doc before shipping** (top banner) | 🔲 To do — still present on `main` |
+
+**Net:** 9 of the 12 `P*` items are done on `main`; **P0-2** and **P2-8** are the
+two deliberate deferrals, and **P2-9** is a one-line owner confirmation. Those two
+deferrals — the from-clone wording and the reflectance formula — are the same
+items the sibling status doc `docs/audit_plan_alternate.md` tracks as open (its
+A1a/C7a and its B1).
+
+---
+
 ## 1. Verified faithful — do not re-audit, do not "fix"
 
 Confirmed by direct comparison. Treat as settled.
@@ -114,6 +154,12 @@ one series and cross-reference each other correctly).
 ## 3. P0 — Blocking. The repo does not run from a clone.
 
 ### P0-1. Moving notebooks into `notebooks/` broke every path  **[revised]**
+
+> **Status: ✅ Done on `main`.** `pyproject.toml` + `src/upwins_hsi/` and
+> `src/hsiViewer/` (each with an `__init__.py`); the `REPO_ROOT` walk-up is in all
+> three notebooks, `legacy/`, and `scripts/batch_convert_reflectance.py`;
+> `from upwins_hsi import utils` replaced `import utils`, and `from hsiViewer import …`
+> was preserved (so `CalPanels.pkl` still unpickles).
 
 Jupyter sets the kernel's working directory to the **notebook's own directory**, not the
 directory the server was launched from. Confirmed in `jupyter_server`'s
@@ -242,6 +288,11 @@ companion repo passes both, and so must this one.
 
 ### P0-2. Docs promise a from-clone run that is not possible  **[BLOCKED — §6b-1]**
 
+> **Status: ⛔ Deferred (§6b-1).** `README.md:26-27` still makes the from-clone
+> claim, and now also points at the old `data/calibration/` path (the set moved to
+> `examples/calibration/`). Left intentionally, per the holding pattern — this is
+> the alternate audit's A1a/C7a.
+
 `data/sample/` contains only a `README.md`, but `config.yaml` defaults point into it
 (`raw_0_or`, `raw_34850_or`, `raw_4000_or_ref.img`). Two claims are therefore false today:
 
@@ -263,6 +314,10 @@ If the answer is "no sample data ships", copy the companion's wording; do not le
 repo asserting a from-clone run that the companion correctly disclaims.
 
 ### P0-3. The devcontainer mount will hide the shipped calibration set  **[new]**
+
+> **Status: ✅ Done.** The shipped reference set is under `examples/calibration/`,
+> `examples/README.md` carries the "Why this is not under `data/`" section, and
+> `.gitignore` ignores `data/` in full (no exceptions).
 
 This is an interaction between P1-3 and the committed data, and it is why P1-3 cannot be
 fixed naively.
@@ -304,6 +359,11 @@ improvement even setting the container aside: it is what makes P1-6 disappear.
 
 ### P1-3. `.devcontainer/` was copied verbatim and is client-hostile  **[revised]**
 
+> **Status: ✅ Done.** `${localEnv:HOME}` mount with the correct workspace target,
+> a `postCreateCommand` editable install, `--gpus` removed (with a do-not-re-add
+> comment), base image now `mcr.microsoft.com/devcontainers/python:3.12-bookworm`
+> + `python3-pyqt5`, and `"name"` renamed to `upwins-hsi-preprocessing`.
+
 `README.md` offers it as an install path ("or use the devcontainer"), but:
 
 - `devcontainer.json` bind-mounts a personal path:
@@ -340,6 +400,11 @@ consistent" and puts the 20 GB image back:
 
 ### P1-4. Default config doesn't chain across notebooks
 
+> **Status: ✅ Done.** `reflectance_image` / `reflectance_image_hdr` default (left
+> blank) to `<raw_image>_ref`, so nb02's viewer cell and nb03 read what nb02
+> writes. The save cell now writes `CONFIG['paths']['raw_image'] + '_ref.hdr'`,
+> closing the cross-cell leak.
+
 Notebook 02 converts `raw_image` (`raw_34850_or`) and writes `raw_34850_or_ref`, but
 `reflectance_image` defaults to `raw_4000_or_ref.img`. So 02's own viewer cell and all of
 notebook 03 read something 02 did not produce. Inherited from the originals (which pointed at
@@ -373,6 +438,10 @@ spectral.envi.save_image(CONFIG['paths']['raw_image'] + '_ref.hdr', imRef, metad
 `raw_34850_or_ref.img` + `.hdr` — matching the `reflectance_image` pair above.
 
 ### P1-5. `config.yaml` extension convention is inconsistent  **[DECIDED — implement]**
+
+> **Status: ✅ Done.** `config.yaml` uses explicit `*_image` / `*_image_hdr`
+> pairs, and the `Path(...).stem` mismatch `assert` is in nb01 cell 4 (and the
+> analogous open sites in nb02/nb03).
 
 `cal_image` and `raw_image` are extension-less ENVI base names; `reflectance_image` includes
 `.img`. Nothing flags the difference. Notebook 02/03 paper over it with
@@ -457,6 +526,11 @@ is a candidate for the separate companion-repo session — see §8. Out of scope
 
 ### P1-6. Notebook 01 overwrites tracked, shipped files  **[revised]**
 
+> **Status: ✅ Done.** Notebook 01 writes gain/offset and the panel-spectra
+> intermediates into the gitignored `calibration_dir`; the shipped reference set
+> stays read-only in `examples/calibration/`. Running the demo no longer dirties
+> tracked files.
+
 Cells 21 and 34 write `panel_low_spectra.npy`, `panel_mid_spectra.npy`, `gain.npy`, `offset.npy`
 into `data/calibration/`, which is committed and **not** gitignored (verified with
 `git check-ignore`). Running 01 dirties the working tree and clobbers the reference calibration
@@ -475,6 +549,10 @@ Separate the config keys accordingly — inputs read from `examples/`, outputs w
 it can always be regenerated.
 
 ### P1-10. Docs layout parity  **[new]**
+
+> **Status: ✅ Done.** `docs/data.md` and `examples/README.md` exist; `README.md`
+> has a `## Layout` section, an `### If you use the devcontainer` subsection, and a
+> Quickstart with `pip install -e .`.
 
 Small, mechanical, and worth doing because the client will open both repos side by side.
 
@@ -503,6 +581,10 @@ Small, mechanical, and worth doing because the client will open both repos side 
 
 ### P2-7. `gain = gain[indices]` re-run hazard in notebook 02
 
+> **Status: ✅ Done (comment).** nb02 cell 9 carries the NOTE that re-running it
+> without re-running the load cell double-subsets and raises `IndexError`. The
+> in-place rebinding itself is unchanged — this is the alternate audit's B3.
+
 Cell 9 rebinds `gain`/`offset`, which cell 3 loaded. Re-running cell 9 without re-running
 cell 3 double-subsets and raises `IndexError`. Faithful to the original; add a one-line comment
 or reload inside the cell.
@@ -510,6 +592,10 @@ or reload inside the cell.
 This is the same bug that made the original `atmospheric_compensation.py` unusable — see §7.
 
 ### P2-8. Inherited math discrepancy in the reflectance formula  **[DEFERRED — do not touch]**
+
+> **Status: ⛔ Deferred (§6b-2).** The formula `gain*(counts + offset)` is
+> untouched in both nb02 cell 9 and `scripts/batch_convert_reflectance.py:98`.
+> This is the alternate audit's B1 (High) — a science decision left to the owner.
 
 Notebook 02 and the batch script apply:
 
@@ -525,6 +611,11 @@ the fit. The source repo disagrees with itself; the port faithfully copied noteb
 for a science decision; a client will run this code.
 
 ### P2-9. Unverified metadata assertions
+
+> **Status: 🔲 To do — owner confirmation.** NSF Grant No. 2319470, MIT /
+> "Copyright (c) 2025 upwins", and the companion repo name are all still present
+> and match the reviewed `upwins-veg-classifier`. No change was made (that was the
+> stated default); one explicit yes from the owner still closes it.
 
 These appear only in the new repo — the original has no README or license:
 
@@ -542,6 +633,10 @@ one is wrong it is wrong in both places, and both would need the same correction
 worth one explicit yes from the owner.
 
 ### P2-11. Leftover research-style instruction in notebook 01  **[new]**
+
+> **Status: ✅ Done.** The red-HTML "Change the dir and fname…" cell is gone from
+> nb01. (Separately, the alternate audit's C6 flags typos that survive nearby —
+> `saturation_trheshold`, "poixels" ×2 — which were not part of P2-11.)
 
 Cell 3 of `01_calibrate_cal_panels.ipynb` is a raw HTML markdown cell:
 
@@ -618,6 +713,13 @@ pattern. Leave them visibly open rather than quietly resolving them.
    nothing in this implementation pass; it blocks shipping to the client.
 
 ### 6c. Has a stated default — a session can proceed, but confirm if you disagree
+
+> **Status on `main`:** each default below was taken as written. **6c-3 (P2-9)** —
+> 🔲 unchanged, one owner confirmation outstanding. **6c-4 (second calibration
+> set)** — 🔲 default taken: not preserved; recoverable from
+> `research_species_mapping` history if the owner wants it. **6c-5 (dataset link /
+> DOI)** — 🔲 the `TODO (data owner)` marker is carried in `docs/data.md`, still to
+> be filled. **6c-6 (package name)** — ✅ implemented as `upwins_hsi`.
 
 3. **P2-9**, grant number / license / companion repo name. *Default:* leave as-is — all three
    already match the reviewed companion repo. Confirming costs one sentence; if one is wrong
