@@ -41,27 +41,63 @@ copy those solutions rather than invent new ones.
 | Item | Covers | Status on `main` |
 |---|---|---|
 | P0-1 | `src/` layout, `pyproject.toml`, `REPO_ROOT` walk-up | ✅ Done |
-| P0-2 | README's from-clone claim | ⛔ Deferred (§6b-1) — still false, and now also points at the old `data/calibration/` path |
-| P0-3 | `examples/` move, `data/` gitignored in full | ✅ Done |
-| P1-3 | Devcontainer (mount, base image, `postCreateCommand`) | ✅ Done |
+| P0-2 | README's from-clone claim | ✅ **Done (2026-07-30)** — nothing ships; README/docs rewritten honestly, from-clone claim removed. See *Handoff-decision cleanup* below |
+| P0-3 | `examples/` move, `data/` gitignored in full | ✅ Done → **superseded (2026-07-30):** `examples/` deleted in full; nothing ships |
+| P1-3 | Devcontainer (mount, base image, `postCreateCommand`) | ✅ Done (2026-07-30: `examples/` mention in the mount comment removed) |
 | P1-4 | Config chains; nb02 save-cell leak fixed | ✅ Done |
 | P1-5 | Explicit `image` / `image_hdr` pairs + mismatch guard | ✅ Done |
 | P1-6 | Notebook 01 outputs to gitignored `calibration_dir` | ✅ Done |
-| P1-10 | `docs/data.md`, `examples/README.md`, README Layout + devcontainer subsection | ✅ Done |
+| P1-10 | `docs/data.md`, `examples/README.md`, README Layout + devcontainer subsection | ✅ Done → **updated (2026-07-30):** `examples/README.md` removed with `examples/`; `docs/data.md` + README rewritten for "nothing ships" |
 | P2-7 | `gain = gain[indices]` re-run hazard — comment | ✅ Done (comment added) |
-| P2-8 | Reflectance formula `gain*(counts+offset)` | ⛔ Deferred (§6b-2) — untouched by design; a science decision |
+| P2-8 | Reflectance formula `gain*(counts+offset)` | ✅ **Done (2026-07-30)** — fixed to `gain*counts + offset` in nb02 + batch. See *Handoff-decision cleanup* below |
 | P2-9 | Grant / license / companion-name assertions | 🔲 To do — one owner confirmation; unchanged, matches companion |
 | P2-11 | Red-HTML "change the dir/fname" cell in nb01 | ✅ Done (removed) |
-| §6c-4 | Preserve the dropped second (Greenhead) calibration? | 🔲 Owner decision — default taken (not preserved; recoverable from history) |
+| §6c-4 | Preserve the dropped second (Greenhead) calibration? | ✅ **Owner confirmed (2026-07-30):** not preserved; stays in `research_species_mapping` history |
 | §6c-5 | Dataset download link / DOI for `docs/data.md` | 🔲 To do — `TODO (data owner)` marker carried across |
 | §8 | Companion-repo defects | ⛔ Out of scope here — separate session |
 | — | **Delete this working doc before shipping** (top banner) | 🔲 To do — still present on `main` |
 
-**Net:** 9 of the 12 `P*` items are done on `main`; **P0-2** and **P2-8** are the
-two deliberate deferrals, and **P2-9** is a one-line owner confirmation. Those two
-deferrals — the from-clone wording and the reflectance formula — are the same
-items the sibling status doc `docs/audit_plan_alternate.md` tracks as open (its
-A1a/C7a and its B1).
+**Net (original overlay, as of `main`):** 9 of the 12 `P*` items were done on
+`main`; **P0-2** and **P2-8** were the two deliberate deferrals, and **P2-9** is a
+one-line owner confirmation. **Both deferrals have since been closed on branch
+`claude/audit-repo-cleanup-f80o10` — see the next section.** Only **P2-9** and
+**§6c-5** remain open.
+
+---
+
+## Handoff-decision cleanup — added 2026-07-30 (branch `claude/audit-repo-cleanup-f80o10`)
+
+> **This section is the current state and supersedes the two overlays above where
+> they disagree.** The owner made the outstanding decisions and a follow-up commit
+> (`2c218cf`) implemented them on this branch. The headline change reframes several
+> items: **the repo no longer ships any imagery or calibration, and is no longer
+> expected to run from a bare clone.** `examples/` was deleted in full — the
+> committed calibration set *and* the cal-tarp library — so every reference below to
+> `examples/calibration/…`, a "shipped seed set", or a from-clone run now describes
+> history, not the current tree.
+
+Owner decisions and what shipped for each:
+
+| Decision | Action taken | Items affected |
+|---|---|---|
+| No artifacts/data ship; no from-clone run | Deleted `examples/` entirely; `config.yaml` points every input at user-supplied `data/<collection>/` placeholders; removed the seed-fallback load in nb02 cell 3 + the batch script | P0-2 ✅, P0-3 (superseded), A1a/A1b, C7a |
+| Simplify `config.yaml` | Dropped `calibration_seed_dir` and the whole seed concept | config shape from P1-4/P1-5 kept |
+| Fix P2-8 (B1) reflectance formula | `gain*counts + offset` in nb02 cell 9 + `batch_convert_reflectance.py`; `*mask` kept outside the affine term so no-data pixels stay 0 | **P2-8 ✅** |
+| Fix B5 | `hsi_viewer_ROI.py` `loadROIs` now stores the loaded mask, not an empty copy | **B5 ✅** (alternate audit) |
+| B7 | No shipped pickle left to reuse; seed fallback removed; per-collection reminder comment added in nb01 cell 12 + `config.yaml` | B7 surface reduced; no hard guard added |
+| B8 | Moot — the saturated committed calibration is gone with `examples/` | B8 no longer in the tree |
+| Fix typos (C6) | `saturation_threshold`, "pixels" in nb01 cell 14 | **C6 ✅** |
+| Remove legacy notebook (C9) | Deleted `notebooks/legacy/train_apply_lda_model.ipynb` + its README row | **C9 ✅** (alternate audit) |
+| Don't preserve the dropped Greenhead calibration (§6c-4) | Confirmed — not preserved; stays in `research_species_mapping` history | §6c-4 confirmed |
+
+**Still open after this pass:** **P2-9** (grant/license/companion-name — one owner
+confirmation) and **§6c-5** (dataset link/DOI — the `TODO (data owner)` marker in
+`docs/data.md`). The correctness/dead-code items tracked only by the *alternate*
+audit (B2, B4, B6, C1, C4, C5, C8) were **not** in scope for this pass and remain
+open — see `docs/audit_plan_alternate.md`. The **delete-this-working-doc** banner
+at the top still stands: this file, `docs/audit_plan_alternate.md`, and
+`docs/temp_audit_plan_cross_check.md` are working docs, kept for now by owner
+request.
 
 ---
 
@@ -288,10 +324,13 @@ companion repo passes both, and so must this one.
 
 ### P0-2. Docs promise a from-clone run that is not possible  **[BLOCKED — §6b-1]**
 
-> **Status: ⛔ Deferred (§6b-1).** `README.md:26-27` still makes the from-clone
-> claim, and now also points at the old `data/calibration/` path (the set moved to
-> `examples/calibration/`). Left intentionally, per the holding pattern — this is
-> the alternate audit's A1a/C7a.
+> **Status: ✅ Done (2026-07-30, branch `claude/audit-repo-cleanup-f80o10`).**
+> Resolved by the "no data ships" branch of §6b-1: the from-clone claim is gone.
+> `README.md`, `docs/data.md`, `docs/recording_runbook.md`, `.gitignore`, and the
+> devcontainer comment now say plainly that no imagery or calibration ships and the
+> user supplies it under `data/`. The stale `data/calibration/`/`examples/` paths are
+> gone with `examples/`. This closes the alternate audit's A1a/C7a. The analysis
+> below is retained as the record of what was false before.
 
 `data/sample/` contains only a `README.md`, but `config.yaml` defaults point into it
 (`raw_0_or`, `raw_34850_or`, `raw_4000_or_ref.img`). Two claims are therefore false today:
@@ -315,9 +354,12 @@ repo asserting a from-clone run that the companion correctly disclaims.
 
 ### P0-3. The devcontainer mount will hide the shipped calibration set  **[new]**
 
-> **Status: ✅ Done.** The shipped reference set is under `examples/calibration/`,
-> `examples/README.md` carries the "Why this is not under `data/`" section, and
-> `.gitignore` ignores `data/` in full (no exceptions).
+> **Status: ✅ Done → superseded (2026-07-30).** This was solved on `main` by
+> moving the shipped set to `examples/calibration/` with `data/` gitignored in full.
+> On branch `claude/audit-repo-cleanup-f80o10` the decision changed to ship nothing,
+> so **`examples/` was deleted entirely** — the collision this section guards against
+> can no longer occur, because nothing the repo needs lives under `data/` *or* ships
+> at all. `.gitignore` still ignores `data/` in full.
 
 This is an interaction between P1-3 and the committed data, and it is why P1-3 cannot be
 fixed naively.
@@ -591,11 +633,15 @@ or reload inside the cell.
 
 This is the same bug that made the original `atmospheric_compensation.py` unusable — see §7.
 
-### P2-8. Inherited math discrepancy in the reflectance formula  **[DEFERRED — do not touch]**
+### P2-8. Inherited math discrepancy in the reflectance formula  **[FIXED — 2026-07-30]**
 
-> **Status: ⛔ Deferred (§6b-2).** The formula `gain*(counts + offset)` is
-> untouched in both nb02 cell 9 and `scripts/batch_convert_reflectance.py:98`.
-> This is the alternate audit's B1 (High) — a science decision left to the owner.
+> **Status: ✅ Fixed (2026-07-30, branch `claude/audit-repo-cleanup-f80o10`).** The
+> owner decided the formula. Both consumers now apply `gain*counts + offset`
+> (nb02 cell 9 and `scripts/batch_convert_reflectance.py`), matching notebook 01's
+> `fit_intercept=True` fit. The `* mask` was kept OUTSIDE the affine term so no-data
+> pixels stay exactly 0 and the `band0>0` mask convention holds. This closes the
+> alternate audit's B1. Because no reflectance products ship, there is no in-repo
+> reprocessing burden. The analysis below is retained as the record of the defect.
 
 Notebook 02 and the batch script apply:
 
@@ -671,10 +717,18 @@ markdown.
   guard the convention requires. The first pass's opposite recommendation is retracted
   there with the reason.
 
-### 6b. Deferred by the owner — do NOT guess, and do not block on them
+### 6b. Deferred by the owner — ✅ BOTH NOW ANSWERED (2026-07-30)
 
-Both are deferred deliberately. Neither stops implementation; each has a defined holding
-pattern. Leave them visibly open rather than quietly resolving them.
+> **Update (2026-07-30, branch `claude/audit-repo-cleanup-f80o10`).** Both deferrals
+> below have been resolved by the owner. **(1) Sample data:** answer is *no data
+> ships* — `examples/` was deleted in full and the README/docs rewritten to say the
+> user supplies imagery and calibration (P0-2 closed). **(2) Reflectance formula:**
+> the owner chose `gain*counts + offset`, now implemented (P2-8 closed). The original
+> deferral text and holding patterns are kept below as the record of how the decision
+> stood before it was made.
+
+Both *were* deferred deliberately. Neither stopped implementation; each had a defined
+holding pattern.
 
 > **Implementation status (this pass).** Everything unblocked was implemented on branch
 > `claude/audit-handoff-review-4vpded`: P1-5, P0-1(a), P0-1(b), P0-3, P1-4, P1-3, P1-10,
@@ -685,7 +739,11 @@ pattern. Leave them visibly open rather than quietly resolving them.
 > calibration set now lives in `examples/calibration/`; `data/` is gitignored in full and
 > holds only external imagery + notebook 01's regenerated outputs.
 
-1. **Sample data — deferred.** Whether a small raw + reflectance cube gets committed so
+1. **Sample data — ✅ ANSWERED (2026-07-30): no data ships.** `examples/` deleted in
+   full (calibration set *and* cal-tarp library); README/`docs/data.md`/runbook rewritten
+   to say the user supplies imagery and calibration under `data/`; `config.yaml` points at
+   `data/<collection>/` placeholders and the seed-fallback was removed. The original
+   framing follows. Whether a small raw + reflectance cube gets committed so
    notebooks 02/03 run from a clone, or no sample data ships and the README claims are
    rewritten to say the user must supply imagery.
 
@@ -704,31 +762,32 @@ pattern. Leave them visibly open rather than quietly resolving them.
    is an empty placeholder and its model bundle is not committed), so the answer should
    cover both repos even though implementing it here is scoped to this one.
 
-2. **P2-8, the reflectance formula — deferred.** `gain*(counts + offset)` as shipped versus
+2. **P2-8, the reflectance formula — ✅ ANSWERED (2026-07-30): use `gain*counts + offset`.**
+   Implemented in nb02 cell 9 and the batch script, `*mask` kept outside the affine term.
+   The original framing follows. `gain*(counts + offset)` as shipped versus
    `gain*counts + offset` as notebook 01 fits it.
 
-   *Holding pattern:* change nothing. This item was already "flag, do not fix" — a session
-   was never meant to touch the math. Add the P2-7-style clarifying comment if you like,
-   but do not alter the formula in either the notebook or the batch script. *Blocks:*
-   nothing in this implementation pass; it blocks shipping to the client.
+   *Holding pattern (superseded):* change nothing. This item was "flag, do not fix" until
+   the owner ruled — which they now have. *Blocked:* nothing in the earlier pass; it
+   blocked shipping to the client, which the fix now unblocks.
 
 ### 6c. Has a stated default — a session can proceed, but confirm if you disagree
 
-> **Status on `main`:** each default below was taken as written. **6c-3 (P2-9)** —
-> 🔲 unchanged, one owner confirmation outstanding. **6c-4 (second calibration
-> set)** — 🔲 default taken: not preserved; recoverable from
-> `research_species_mapping` history if the owner wants it. **6c-5 (dataset link /
-> DOI)** — 🔲 the `TODO (data owner)` marker is carried in `docs/data.md`, still to
-> be filled. **6c-6 (package name)** — ✅ implemented as `upwins_hsi`.
+> **Status (updated 2026-07-30):** **6c-3 (P2-9)** — 🔲 unchanged, one owner
+> confirmation still outstanding. **6c-4 (second calibration set)** — ✅ **owner
+> confirmed: not preserved**; stays in `research_species_mapping` history. **6c-5
+> (dataset link / DOI)** — 🔲 the `TODO (data owner)` marker is carried in
+> `docs/data.md`, still to be filled. **6c-6 (package name)** — ✅ implemented as
+> `upwins_hsi`.
 
 3. **P2-9**, grant number / license / companion repo name. *Default:* leave as-is — all three
    already match the reviewed companion repo. Confirming costs one sentence; if one is wrong
    it is wrong in both repos.
-4. **The second calibration set** (§7). The coefficients embedded in the dropped
-   `atmospheric_compensation.py` are numerically different from the committed ones and are a
-   separate calibration. *Default:* do not preserve them — they remain in
-   `research_species_mapping` history. Say so if that calibration matters and it should ship
-   as a second `.npy` pair with a provenance note.
+4. **The second calibration set** (§7). ✅ **Owner confirmed (2026-07-30): not
+   preserved.** The coefficients embedded in the dropped `atmospheric_compensation.py`
+   are numerically different from the (now-removed) committed ones and are a separate
+   calibration; they remain in `research_species_mapping` history and are not carried
+   into this repo. *(Original default, now confirmed:* do not preserve them.)
 5. **The dataset download link or DOI** for `docs/data.md`. *Default:* carry the companion's
    `> **TODO (data owner):**` marker across unchanged. Supply a link or DOI if one exists.
 6. **The package name** for the `src/` layout. *Default:* `upwins_hsi`, mirroring
