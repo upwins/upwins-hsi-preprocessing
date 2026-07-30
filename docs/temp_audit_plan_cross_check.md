@@ -11,14 +11,14 @@ Cross-checked 2026-07-28 on branch `claude/audit-plan-cross-check-2qya0i`.
 > **Status note — 2026-07-30.** This document answers *attribution* (pre-existing vs.
 > handoff-introduced), and those verdicts are historical facts that do not change. But
 > the **codebase has since moved on**: on branch `claude/audit-repo-cleanup-f80o10`
-> (@ `2c218cf`) the owner's handoff decisions were implemented — **nothing ships**
-> (`examples/` deleted, including `data/calibration/`-derived artifacts and the
-> cal-tarp library), **B1 fixed**, **B5 fixed**, **C6 typos fixed**, **C9 legacy
-> notebook deleted**, docs made honest, B7 mitigated, B8 moot. So the byte-identity
-> and "still present" statements below describe the tree **as of the 2026-07-28
-> cross-check**, not today. For current per-finding status see
-> `docs/audit_plan_alternate.md` (Status at a glance) and `AUDIT_HANDOFF.md`
-> (Handoff-decision cleanup). Paths like `data/calibration/*` and
+> the owner's handoff decisions and then the remaining correctness/dead-code items
+> were implemented over two passes — **nothing ships** (`examples/` deleted, including
+> `data/calibration/`-derived artifacts and the cal-tarp library), and **A1a, A1b,
+> B1, B2, B4, B5, B6, C1, C5, C6, C7a, C8, C9** are now resolved (B7 mitigated, B8
+> moot), leaving only **C4** open. So the byte-identity and "still present" statements
+> below describe the tree **as of the 2026-07-28 cross-check**, not today. For current
+> per-finding status see `docs/audit_plan_alternate.md` (Status at a glance) and
+> `AUDIT_HANDOFF.md` (Handoff-decision cleanup). Paths like `data/calibration/*` and
 > `atmospheric_compensation.py` line references are historical.
 
 ## Bottom line

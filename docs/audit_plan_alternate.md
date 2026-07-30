@@ -22,20 +22,28 @@ is made with the current state in view rather than from memory.
   `2c218cf`, where the owner's handoff decisions were implemented (see the update box
   below). Several findings this document tracked as Open/Deferred are now closed.
 
-> **Update — 2026-07-30, branch `claude/audit-repo-cleanup-f80o10`.** The owner
-> resolved the outstanding decisions and a commit implemented them. The change that
-> reframes the most findings: **the repo now ships no imagery and no calibration, and
-> is not expected to run from a clone.** `examples/` was deleted in full — the
-> committed calibration set (`CalPanels.pkl`, `gain.npy`, `offset.npy`,
-> `panel_*_spectra.npy`) *and* the cal-tarp library (`cal_tarp_spectra.sli/.hdr`).
-> Concretely this pass: **B1 fixed** (`gain*counts + offset`), **B5 fixed**
-> (`loadROIs` keeps the loaded mask), **C6 fixed** (typos), **C9 resolved** (legacy
-> notebook deleted), **A1a/A1b/C7a resolved** (docs now honest; nothing ships),
-> **B7 surface reduced** (no shipped pickle, seed fallback removed, per-collection
-> reminder added), **B8 removed with the artifacts**. Still open and out of scope
-> here: **B2, B4, B6, C1, C4, C5, C8**. The Status-at-a-glance table and per-finding
-> notes below carry a **(2026-07-30)** marker where the status changed; the original
-> analysis is retained as the record.
+> **Update — 2026-07-30, branch `claude/audit-repo-cleanup-f80o10`** (two passes,
+> same day). The owner resolved the outstanding decisions and then asked for the
+> remaining correctness/dead-code items. The change that reframes the most findings:
+> **the repo now ships no imagery and no calibration, and is not expected to run from
+> a clone.** `examples/` was deleted in full — the committed calibration set
+> (`CalPanels.pkl`, `gain.npy`, `offset.npy`, `panel_*_spectra.npy`) *and* the
+> cal-tarp library (`cal_tarp_spectra.sli/.hdr`).
+>
+> - **First pass:** **B1 fixed** (`gain*counts + offset`), **B5 fixed** (`loadROIs`
+>   keeps the loaded mask), **C6 fixed** (typos), **C9 resolved** (legacy notebook
+>   deleted), **A1a/A1b/C7a resolved** (docs honest; nothing ships), **B7 surface
+>   reduced**, **B8 removed with the artifacts**.
+> - **Second pass:** **B2 fixed** (band-grid guard in nb02 + batch), **B4 fixed**
+>   (dead branch removed; high tarp kept for context by choice), **B6 fixed**
+>   (smoothing re-applies the mask), **C1 fixed** (`utils.py` trimmed to 64 lines,
+>   `psutil`/`scipy` dropped), **C5 fixed** (import blocks trimmed), **C8 fixed**
+>   (nb02 kernelspec).
+>
+> **Only one finding remains open: C4** (three unused viewer modules), plus B3
+> (idempotency, comment-only) and B7 (mitigated, no hard guard) still Partial. The
+> Status-at-a-glance table and per-finding notes below carry a **(07-30)** marker
+> where the status changed; the original analysis is retained as the record.
 
 The calibration binaries were re-hashed *at the earlier re-check*: `CalPanels.pkl`,
 `gain.npy`, `offset.npy`, `panel_low_spectra.npy`, `panel_mid_spectra.npy` and
@@ -85,32 +93,40 @@ are marked **(07-30)**.
 | A1b | No sample imagery ships | Blocking | ✅ **Resolved (07-30)** — decided: no data ships | §6b-1 |
 | A2 | Config example images don't chain | Blocking | ✅ **Resolved** | P1-4 |
 | B1 | Offset applied inside the gain | High | ✅ **Fixed (07-30)** — `gain*counts + offset` | P2-8 |
-| B2 | No band-grid check when applying calibration | Medium | 🔲 **Open** | not covered |
+| B2 | No band-grid check when applying calibration | Medium | ✅ **Fixed (07-30)** — guard in nb02 + batch | not covered |
 | B3 | Notebook 02 cell 9 not idempotent | Medium | 🟡 **Partial** (comment only) | P2-7 |
-| B4 | Dead `use_all_regions`/`thm` branch; unused high tarp | Medium | 🔲 **Open** | not covered |
+| B4 | Dead `use_all_regions`/`thm` branch; unused high tarp | Medium | ✅ **Resolved (07-30)** — dead branch removed, fit commented as two-tarp; high tarp kept for context by choice | not covered |
 | B5 | `loadROIs` throws away the masks it loaded | Medium | ✅ **Fixed (07-30)** | not covered |
-| B6 | Smoothing bleeds into no-data pixels | Low | 🔲 **Open** | not covered |
+| B6 | Smoothing bleeds into no-data pixels | Low | ✅ **Fixed (07-30)** — mask re-applied after averaging | not covered |
 | B7 | `CalPanels.pkl` freezes DN → silent re-fit | High | 🟡 **Mitigated (07-30)** — no shipped pickle, seed fallback gone, reminder added; no hard guard | not covered |
 | B8 | Mid tarp 98.6 % saturated in committed calibration | High | ✅ **Moot (07-30)** — committed calibration removed | not covered (was "faithful") |
-| C1 | `utils.py` 850 lines, ~55 used; `psutil`/`scipy` pins | — | 🔲 **Open** | not covered |
+| C1 | `utils.py` 850 lines, ~55 used; `psutil`/`scipy` pins | — | ✅ **Fixed (07-30)** — trimmed to 64 lines; `psutil`/`scipy` dropped | not covered |
 | C2 | Devcontainer mount dev-specific + wrong workspace | — | ✅ **Resolved** | P1-3 |
 | C3 | Devcontainer on multi-GB CUDA/TF image | — | ✅ **Resolved** | P1-3 |
-| C4 | Three unused viewer modules | — | 🔲 **Open** | not covered |
-| C5 | Copy-pasted import block none of the notebooks needs | — | 🔲 **Open** | not covered |
+| C4 | Three unused viewer modules | — | 🔲 **Open** — the one remaining item | not covered |
+| C5 | Copy-pasted import block none of the notebooks needs | — | ✅ **Fixed (07-30)** — each notebook's imports trimmed | not covered |
 | C6 | Leftover pre-config instruction cells + typos | — | ✅ **Resolved (07-30)** — typos fixed | P2-11 |
 | C7a | Docs overstate what ships | — | ✅ **Resolved (07-30)** — docs honest | P0-2 / P1-10 |
 | C7b | Demo run dirties committed files | — | ✅ **Resolved** | P1-6 |
-| C8 | Developer-local kernel name (`.venv`) | — | 🟡 **Partial** (01 fixed, 02 not) | not covered |
+| C8 | Developer-local kernel name (`.venv`) | — | ✅ **Fixed (07-30)** — nb02 kernelspec set to Python 3 | not covered |
 | C9 | Legacy notebook latent errors | — | ✅ **Resolved (07-30)** — notebook deleted | not covered |
 | C10 | Batch script's calibration source changed, undocumented | — | ✅ **Resolved** (mostly) | §7 |
 
-**Tally as of 2026-07-30** (22 findings): ✅ Resolved 13 (A1a, A1b, A2, B1, B5, B8,
-C2, C3, C6, C7a, C7b, C9, and C10 mostly — B8 by removal) · 🟡 Partial/Mitigated 3
-(B3, B7, C8) · 🔲 Open 6 (B2, B4, B6, C1, C4, C5) · ⛔ Deferred 0 — both former
-deferrals (A1a/A1b and B1) were decided. Of the reflectance-affecting or
-silently-miscalibrating items, **B1 is fixed** and **B8 is moot** (calibration
-removed); **B2, B4, B7** remain live (B7 mitigated, no hard guard). The still-open
-set — **B2, B4, B6, C1, C4, C5** — was out of scope for the 2026-07-30 pass.
+**Tally as of 2026-07-30** (22 findings, after both passes on branch
+`claude/audit-repo-cleanup-f80o10`): ✅ Resolved 19 (A1a, A1b, A2, B1, B2, B4, B5,
+B6, B8, C1, C2, C3, C5, C6, C7a, C7b, C8, C9, and C10 mostly — B8 by removal) ·
+🟡 Partial/Mitigated 2 (B3 idempotency comment-only, B7 mitigated with no hard
+guard) · 🔲 Open 1 (**C4** — three unused viewer modules) · ⛔ Deferred 0. Every
+reflectance-affecting or silently-miscalibrating item is now closed: **B1 fixed**,
+**B2 guarded**, **B6 fixed**, **B8 moot**, **B7 mitigated**. The lone open item, C4,
+is cosmetic dead code left in place.
+
+> **Earlier tally (first pass, same day):** ✅ 13 · 🟡 3 (B3, B7, C8) · 🔲 6 (B2, B4,
+> B6, C1, C4, C5). The second pass then fixed B2, B4, B6, C1, C5 and C8.
+>
+> **Original tally (as of `main`, pre-2026-07-30):** ✅ Resolved 5 (A2, C2, C3, C7b,
+> C10) · 🟡 Partial 4 (B3, C6, C7a, C8) · ⛔ Deferred 3 (A1a, A1b, B1) · 🔲 Open 10
+> (B2, B4, B5, B6, B7, B8, C1, C4, C5, C9).
 
 > **Original tally (as of `main`, pre-2026-07-30):** ✅ Resolved 5 (A2, C2, C3, C7b,
 > C10) · 🟡 Partial 4 (B3, C6, C7a, C8) · ⛔ Deferred 3 (A1a, A1b, B1) · 🔲 Open 10
@@ -173,13 +189,19 @@ the intercept (~10⁻² reflectance) multiplied by a ~10⁻⁴ gain and annihila
 biasing every product by **mean 0.0151 / max 0.0215 reflectance**. This was the one
 open item that changed output numbers — now corrected.
 
-**B2 — no band-grid check when applying the calibration. Status: 🔲 Open.**
-Neither consumer guards the coefficient length against the target image's band
-count. (`main` had a *seed-vs-collection fallback* here; the 2026-07-30 pass removed
-it — nothing ships — so notebook 02 / the batch script now load `gain`/`offset`
-straight from `calibration_dir`.) Still no band-grid guard: a 343-element
-`gain`/`offset` applied to a differently-banded cube misaligns silently or
-`IndexError`s deep in the loop. **Still Open** — not addressed by the 2026-07-30 pass.
+**B2 — no band-grid check when applying the calibration. Status: ✅ Fixed (2026-07-30).**
+Both consumers now guard the coefficient length against the target image's band
+count before applying:
+- `notebooks/02_convert_to_reflectance.ipynb` cell 9 raises `ValueError` if
+  `len(gain) != len(wl)`.
+- `scripts/batch_convert_reflectance.py` skips (and reports) any image whose band
+  count does not match, so a batch keeps going rather than aborting.
+
+A 343-element `gain`/`offset` applied to a differently-banded cube is now caught up
+front with a clear message instead of misaligning silently or `IndexError`-ing deep
+in the loop. (`main` had a *seed-vs-collection fallback* here; the first 2026-07-30
+pass removed it — nothing ships — so both consumers load `gain`/`offset` straight
+from `calibration_dir`.)
 
 **B3 — notebook 02 cell 9 is not idempotent. Status: 🟡 Partial (P2-7).**
 Cell 9 still rebinds in place (`gain = gain[indices]`, `offset = offset[indices]`,
@@ -188,14 +210,19 @@ warning that re-running the cell without re-running the load cell double-subsets
 and raises `IndexError`. The hazard itself is unchanged; the batch script was
 already safe (`gain = gain_full[indices]`).
 
-**B4 — dead branch + unused high tarp. Status: 🔲 Open.**
-`notebooks/01_calibrate_cal_panels.ipynb` cell 31 still carries
-`use_all_regions = True` with an `else` branch referencing `thm`, which is never
-defined (flipping the flag → `NameError`). The high-reflectance tarp is still
-loaded and averaged (`asdhm`, cell 23) and plotted (cell 25) but **never enters
-the fit** — cell 31 fits only `asdlm` (dark) and `asdmm` (med). The calibration
-remains a two-tarp fit through a forced origin that the notebook never states.
-Not covered by the slimmer audit.
+**B4 — dead branch + unused high tarp. Status: ✅ Resolved (2026-07-30).**
+The dead code is gone: the `use_all_regions = True` flag and its unreachable `else`
+branch (which referenced the never-defined `thm`) were removed from
+`notebooks/01_calibrate_cal_panels.ipynb`'s fit cell, and a comment now states the
+fit explicitly — *"regress the two tarp reflectances (plus a forced origin) on the
+measured panel counts."* That closes the two things B4 flagged as defects: the dead
+branch and the unstated two-tarp nature of the fit.
+
+The high-reflectance tarp is **intentionally** still loaded, averaged (`asdhm`) and
+plotted — the owner asked that the high-tarp code not be touched. So the fit remains
+a two-tarp (dark + med) empirical line through a forced origin, with the high tarp
+shown for context only, and that is now a deliberate, documented choice rather than
+an oversight.
 
 **B5 — `loadROIs` throws away the masks it loaded. Status: ✅ Fixed (2026-07-30).**
 `src/hsiViewer/hsi_viewer_ROI.py` line 523 now stores the mask just read —
@@ -206,11 +233,14 @@ divergence from the original `hsiViewer` (otherwise byte-identical); the fix is
 commented in place. Live-test caveats from Phase 4 (rotation, cross-image spectra
 re-extraction) still apply before trusting it on a real ROI file.
 
-**B6 — smoothing bleeds into no-data pixels. Status: 🔲 Open.**
-`src/upwins_hsi/utils.py`'s `spatial_smoothing` still divides by `mask_sum`
-without re-applying the mask afterward (utils.py byte-identical). The
-`smoothing_level: 2` edge-growth and the downstream `im.mask = Arr[:,:,0] != 0`
-interaction stand. Not covered by the slimmer audit.
+**B6 — smoothing bleeds into no-data pixels. Status: ✅ Fixed (2026-07-30).**
+`src/upwins_hsi/utils.py`'s `spatial_smoothing` now re-applies the mask after the
+neighbor averaging (`arr_out[:,:,i] = arr_out[:,:,i]/mask_sum*mask`), so a no-data
+pixel (mask == 0) bordering valid data is held at 0 instead of picking up a
+neighbor's spectrum. This stops the valid-data region from growing one pixel per
+`smoothing_level` pass and keeps the downstream `band0 > 0` mask convention intact.
+Verified with a unit check (a no-data pixel surrounded by valid data stays exactly 0;
+a uniform image is unchanged).
 
 **B7 — `CalPanels.pkl` freezes measured DN. Status: 🟡 Mitigated (2026-07-30).**
 The 2026-07-30 pass reduced the surface without adding a hard guard:
@@ -242,15 +272,16 @@ separate, still-open design point, not part of this pass).
 
 ### C. Packaging, hygiene, docs
 
-**C1 — `utils.py` dead code + `psutil`/`scipy` pins. Status: 🔲 Open.**
-`src/upwins_hsi/utils.py` is still 850 lines and byte-identical: the broken
-geotiff functions, `lda_predict_proba`, and the unused `PdfPages`/`psutil`/
-`platform`/`sys`/`math`/`importlib`/`pandas`/`mpatches` imports are all present.
-`requirements.txt` still pins `psutil==6.0.0` (for the dead import) and
-`scipy==1.13.1` (imported nowhere). The `src/` move did not trim anything. Not
-covered by the slimmer audit — note it re-affirmed `utils.py` as "byte-identical,
-do not re-audit," which is about *fidelity to the original*, not about the dead
-code.
+**C1 — `utils.py` dead code + `psutil`/`scipy` pins. Status: ✅ Fixed (2026-07-30).**
+`src/upwins_hsi/utils.py` was trimmed from 850 lines to **64** — only
+`spatial_smoothing` (the one function the notebooks and batch script call) plus
+`numpy`/`copy` remain. The broken geotiff functions, `lda_predict_proba`, the
+display/PDF helpers, and the unused `PdfPages`/`psutil`/`platform`/`sys`/`math`/
+`importlib`/`pandas`/`mpatches` imports are gone. `requirements.txt` dropped
+`psutil==6.0.0` (only there for the now-removed dead import) and `scipy==1.13.1`
+(imported nowhere). Verified: `spatial_smoothing` still imports and runs (it also
+carries the B6 fix). This supersedes the slimmer audit's "byte-identical, do not
+re-audit" note, which was about fidelity to the original, not the dead code.
 
 **C2 / C3 — devcontainer. Status: ✅ Resolved (P1-3).**
 `.devcontainer/devcontainer.json` now uses
@@ -261,17 +292,24 @@ it), and renames to `upwins-hsi-preprocessing`. The `Dockerfile` base is now
 `mcr.microsoft.com/devcontainers/python:3.12-bookworm` with `python3-pyqt5` — no
 CUDA, no TensorFlow.
 
-**C4 — three unused viewer modules. Status: 🔲 Open.**
+**C4 — three unused viewer modules. Status: 🔲 Open — the one remaining finding.**
 `src/hsiViewer/hsi_viewer.py`, `hsi_viewer_2.py` and `hsi_viewer_array.py` are
-all still present and still unimported by any notebook or script here. Not
-covered by the slimmer audit.
+all still present and still unimported by any notebook or script here. Left in place
+deliberately for now — the notebooks import only `hsi_viewer_layers` and
+`hsi_viewer_ROI`, so these three are dead weight but harmless. This is the last
+unaddressed item in this document.
 
-**C5 — copy-pasted import block. Status: 🔲 Open.**
-Notebook 01 cell 1 still imports `PCA`, `GaussianMixture`,
-`mean_squared_error`/`r2_score`, `colors`, `csv`, `time`, `copy`, `importlib`, a
-duplicate `import numpy as np`, and `hsi_viewer_layers as hlv` (which it never
-calls). Notebooks 02/03 carry their analogous unused blocks. Not covered by the
-slimmer audit.
+**C5 — copy-pasted import block. Status: ✅ Fixed (2026-07-30).**
+Each notebook's first cell was trimmed to the names it actually uses, verified
+against a per-notebook usage scan:
+- **nb01:** `linear_model`, `numpy`, `os`, `pickle`, `spectral`, `plt`, `mpl`, `hvr`.
+- **nb02:** `numpy`, `os`, `spectral`, `utils`, `hlv`.
+- **nb03:** `numpy`, `spectral`, `hvr`.
+
+The `PCA`/`GaussianMixture`/`mean_squared_error`/`r2_score`/`colors`/`csv`/`time`/
+`copy`/`importlib` imports, the duplicate `import numpy as np`, the commented-out
+block in nb03, and the wrong-viewer alias (`hlv` in nb01, `hvr` in nb02) were all
+removed. A check confirmed no removed name is referenced anywhere in its notebook.
 
 **C6 — leftover instruction cells + typos. Status: ✅ Resolved (2026-07-30).**
 The contradictory red-HTML "*Change the dir and fname…*" cells were already gone on
@@ -291,12 +329,11 @@ Notebook 01 writes `gain`/`offset`/`panel_*` into a **gitignored** per-collectio
 `examples/calibration/`; as of 2026-07-30 that is deleted — nothing ships — so there
 are no tracked calibration artifacts left for a demo run to clobber at all.)
 
-**C8 — developer-local kernel name. Status: 🟡 Partial.**
-`01_calibrate_cal_panels.ipynb` is now `Python 3`, but
-`02_convert_to_reflectance.ipynb` still carries
-`"kernelspec": {"display_name": ".venv"}`. (Notebook 03 was already clean.) So
-half of the original two-notebook finding remains. Not covered by the slimmer
-audit.
+**C8 — developer-local kernel name. Status: ✅ Fixed (2026-07-30).**
+`02_convert_to_reflectance.ipynb`'s kernelspec `display_name` was changed from
+`.venv` to `Python 3` (`name`/`language_info` left alone, so the diff is the one
+meaningful line). Notebooks 01 and 03 were already `Python 3`, so all three are now
+consistent and free of the developer-local kernel name.
 
 **C9 — legacy notebook latent errors. Status: ✅ Resolved (2026-07-30).**
 `notebooks/legacy/train_apply_lda_model.ipynb` was **deleted** (owner decision), and
@@ -466,22 +503,25 @@ fit's band axis from the pickle so the stale-cal-image coupling disappears, make
 missing per-collection pickle a loud error, and guard the apply side with a
 band-grid check.** Step 5 (an explicit collection tag in the bundle and the
 reflectance header) is the follow-on that also covers the same-sensor
-cross-collection case, at the cost of one metadata-format change. None of this is
-implemented; B7's full remediation remains **out of scope** until the owner picks it
-up (its surface was reduced on 2026-07-30 — see the B7 status above).
+cross-collection case, at the cost of one metadata-format change.
+
+**Progress (2026-07-30):** step 4 (the apply-side band-grid check) is now
+implemented — this is finding **B2**, done in nb02 + the batch script. Steps 1–3 and
+5 remain unimplemented, so B7's full remediation is still **out of scope**; its
+surface was reduced on 2026-07-30 (see the B7 status above).
 
 ## Bottom line
 
-> **Updated 2026-07-30.** The 2026-07-30 pass on branch
-> `claude/audit-repo-cleanup-f80o10` closed the correctness items the owner chose to
-> act on: **B1 fixed** (`gain*counts + offset`), **B5 fixed** (viewer mask), **B8
-> moot** (saturated calibration removed with `examples/`), plus **B7 mitigated** (no
-> shipped pickle, seed fallback gone, per-collection reminder). Combined with the
-> packaging work and the docs now honestly saying nothing ships (A1a/A1b/C6/C7a/C9),
-> the correctness core is much smaller. **What remains genuinely out of scope:** the
-> band-grid guard (B2), the two-tarp/dead-branch calibration structure (B4), the
-> smoothing edge-bleed (B6), and the dead-code cleanup (C1, C4, C5) — plus the B7
-> hard-guard/collection-tag work. The original bottom line (as of `main`) follows.
+> **Updated 2026-07-30 (after both passes).** The two 2026-07-30 passes on branch
+> `claude/audit-repo-cleanup-f80o10` closed nearly everything. First pass: **B1
+> fixed**, **B5 fixed**, **B8 moot** (saturated calibration removed with `examples/`),
+> **B7 mitigated**, plus the packaging/docs work (A1a/A1b/C6/C7a/C9). Second pass:
+> **B2 fixed** (band-grid guard), **B4 fixed** (dead branch removed), **B6 fixed**
+> (smoothing mask), **C1 fixed** (`utils.py` trimmed; `psutil`/`scipy` dropped),
+> **C5 fixed** (import blocks), **C8 fixed** (kernelspec). **What remains:** only
+> **C4** (three unused viewer modules, left in place as harmless dead weight), with
+> **B3** (idempotency, comment-only) and **B7** (mitigated, no hard guard) still
+> Partial. The original bottom line (as of `main`) follows.
 
 The packaging half of this alternate plan was largely done on `main` — it runs from a
 clone, the devcontainer is client-safe, the demo no longer dirties tracked

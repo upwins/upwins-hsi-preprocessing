@@ -90,14 +90,20 @@ Owner decisions and what shipped for each:
 | Remove legacy notebook (C9) | Deleted `notebooks/legacy/train_apply_lda_model.ipynb` + its README row | **C9 ✅** (alternate audit) |
 | Don't preserve the dropped Greenhead calibration (§6c-4) | Confirmed — not preserved; stays in `research_species_mapping` history | §6c-4 confirmed |
 
-**Still open after this pass:** **P2-9** (grant/license/companion-name — one owner
+**A follow-up pass (same day) then took the remaining correctness/dead-code items**
+tracked by the *alternate* audit: **B2** (band-grid guard in nb02 + batch), **B4**
+(dead `use_all_regions`/`thm` branch removed; high tarp left untouched), **B6**
+(smoothing re-applies the mask), **C1** (`utils.py` trimmed 850→64 lines,
+`psutil`/`scipy` dropped from `requirements.txt`), **C5** (notebook import blocks
+trimmed), and **C8** (nb02 kernelspec). See `docs/audit_plan_alternate.md` for the
+detail. The only alternate-audit finding still open there is **C4** (three unused
+viewer modules), with B3/B7 Partial.
+
+**Still open in this document:** **P2-9** (grant/license/companion-name — one owner
 confirmation) and **§6c-5** (dataset link/DOI — the `TODO (data owner)` marker in
-`docs/data.md`). The correctness/dead-code items tracked only by the *alternate*
-audit (B2, B4, B6, C1, C4, C5, C8) were **not** in scope for this pass and remain
-open — see `docs/audit_plan_alternate.md`. The **delete-this-working-doc** banner
-at the top still stands: this file, `docs/audit_plan_alternate.md`, and
-`docs/temp_audit_plan_cross_check.md` are working docs, kept for now by owner
-request.
+`docs/data.md`). The **delete-this-working-doc** banner at the top still stands: this
+file, `docs/audit_plan_alternate.md`, and `docs/temp_audit_plan_cross_check.md` are
+working docs, kept for now by owner request.
 
 ---
 
