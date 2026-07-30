@@ -2,12 +2,10 @@
 # used to draw ROIs (notebooks 01 and 03), so a display/desktop session is needed
 # for those steps.
 numpy==1.26.4
-scipy==1.13.1
 scikit-learn==1.5.1
 pandas==2.2.2
 spectral==0.23.1
 matplotlib==3.9.2
-psutil==6.0.0
 PyYAML==6.0.2
 
 # Interactive hyperspectral viewer (ROI drawing)

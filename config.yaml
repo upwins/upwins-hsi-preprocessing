@@ -24,14 +24,10 @@ paths:
   raw_image_hdr:         data/my_collection/raw_34850_or.hdr
 
   # --- Notebooks 02/03: reflectance image to view / draw training ROIs on ---
-  # Leave BOTH blank to use the default convention: notebook 02's output for the
-  # raw image above, i.e. <raw_image>_ref.img and <raw_image>_ref.hdr. Notebook
-  # 02 always views its own freshly-written _ref output regardless of these keys;
-  # notebook 03 reads them as its input and falls back to the same default when
-  # they are blank. Set them only to point notebook 03 at a reflectance image
-  # that was NOT produced from raw_image (e.g. one supplied separately) --
-  # notebook 03 warns if a set value disagrees with the default. When set, both
-  # entries of the pair must name the same cube.
+  # Leave BOTH blank (the common case) to use notebook 02's output for raw_image,
+  # <raw_image>_ref.img/.hdr. Set them only to point notebook 03 at a reflectance
+  # image not produced from raw_image; nb 03 warns if a set value disagrees with
+  # that default.
   reflectance_image:
   reflectance_image_hdr:
 
@@ -48,12 +44,10 @@ paths:
   cal_panel_rois:  data/my_collection/CalPanels.pkl   # saved cal-panel ROIs
 
   # ------------------------------------------------------------------------
-  # Calibration bundle for THIS collection. Notebook 01 writes gain.npy,
-  # offset.npy and the panel_*_spectra.npy intermediates INTO this directory;
-  # notebook 02 and the batch script read gain.npy/offset.npy FROM it. Point it
-  # at a per-collection directory so each collection keeps its own coefficients.
-  # Re-run notebook 01 for every new collection -- gain/offset absorb that
-  # collection's illumination and exposure and are not valid for another.
+  # Per-collection calibration bundle. Notebook 01 writes gain.npy/offset.npy
+  # (and the panel_*_spectra.npy intermediates) here; notebook 02 and the batch
+  # script read gain/offset back from here. One directory per collection.
+  # ------------------------------------------------------------------------
   calibration_dir: data/my_collection/calibration
 
 reflectance:
