@@ -33,8 +33,7 @@ notebook code. On camera, point out:
   `cal_image` for nb 01 and `raw_image` for nb 02.
 - **`calibration_dir`.** Where nb 01 writes this collection's `gain`/`offset` and
   where nb 02 reads them back — one folder per collection, so runs never collide.
-  Skip nb 01 and nb 02 falls back to the shipped `examples/calibration/` seed set
-  (and says so).
+  Nothing ships, so nb 02 needs nb 01 to have run for this collection first.
 - **`reflectance_image` left blank** = nb 02's own `<raw_image>_ref` output, used
   automatically by nb 02's viewer and nb 03. Only set it to draw ROIs on a
   reflectance image you didn't just produce.
@@ -56,7 +55,7 @@ Empirical-line calibration from in-scene tarps. Beats to hit:
 | **Fit gain/offset for every band** | This is the empirical line: reference reflectance vs. measured counts, per band. Show the gain/offset curves. |
 | Save calibration | `gain.npy` / `offset.npy` written into `calibration_dir` — the hand-off to Part 2. |
 
-**Expected result:** `gain.npy` and `offset.npy` (plus the panel-spectra intermediates) written into `calibration_dir` — e.g. `data/calibration/<collection>/`.
+**Expected result:** `gain.npy` and `offset.npy` (plus the panel-spectra intermediates) written into `calibration_dir` — e.g. `data/<collection>/calibration/`.
 
 ---
 
@@ -64,7 +63,7 @@ Empirical-line calibration from in-scene tarps. Beats to hit:
 
 | Section | Say / show |
 |---|---|
-| Load calibration | Reuse the gain/offset from Part 1 (read from `calibration_dir`; falls back to the shipped seed set, and says so, if this collection wasn't calibrated). |
+| Load calibration | Reuse the gain/offset from Part 1 (read from `calibration_dir`). Run nb 01 for this collection first — nothing ships, so there is no fallback. |
 | Open a raw image | Point out the smoothing level and bad-band ranges come from the config. |
 | **Convert to reflectance** | Bad-band removal → per-band gain/offset → mask → spatial smoothing → save. This is the core transform. |
 | *(optional)* open reflectance in the viewer | Inspect a few pixel spectra to confirm they look like reflectance. |

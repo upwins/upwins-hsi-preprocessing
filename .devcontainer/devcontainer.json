@@ -36,7 +36,7 @@
 	// live outside the repo. The host path below is hardcoded: edit it if your
 	// data is not at ~/projects/upwins/data, or Docker will silently create an
 	// empty directory there and the notebooks will fail with confusing
-	// missing-file errors. Anything the repo ships for a run lives outside data/
-	// (see examples/), so this mount never hides it. See the Data section of README.md.
+	// missing-file errors. Nothing ships in the repo -- you supply imagery and
+	// calibration under data/. See the Data section of README.md.
 	"mounts": ["source=${localEnv:HOME}/projects/upwins/data,target=/workspaces/upwins-hsi-preprocessing/data,type=bind,consistency=cached"]
 }

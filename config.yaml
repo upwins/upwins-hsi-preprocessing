@@ -3,6 +3,10 @@
 # Edit paths/parameters here rather than in the notebooks. Paths are relative
 # to the repo root; the notebooks resolve them from there (so Jupyter can be
 # launched from either the repo root or the notebooks/ folder).
+#
+# No imagery or calibration ships in this repo -- you supply it. The paths
+# below are placeholders pointing under data/ (gitignored); edit them for your
+# collection, or point them at wherever you keep your data.
 # ==========================================================================
 
 paths:
@@ -12,18 +16,17 @@ paths:
   # ------------------------------------------------------------------------
 
   # --- Notebook 01: raw image containing the cal panels ---
-  cal_image:             examples/sample/raw_0_or
-  cal_image_hdr:         examples/sample/raw_0_or.hdr
+  cal_image:             data/my_collection/raw_0_or
+  cal_image_hdr:         data/my_collection/raw_0_or.hdr
 
   # --- Notebook 02: raw image to convert to reflectance ---
-  raw_image:             examples/sample/raw_34850_or
-  raw_image_hdr:         examples/sample/raw_34850_or.hdr
+  raw_image:             data/my_collection/raw_34850_or
+  raw_image_hdr:         data/my_collection/raw_34850_or.hdr
 
   # --- Notebooks 02/03: reflectance image to view / draw training ROIs on ---
   # Leave BOTH blank to use the default convention: notebook 02's output for the
-  # raw image above, i.e. <raw_image>_ref.img and <raw_image>_ref.hdr (for the
-  # shipped example that is examples/sample/raw_34850_or_ref.*). Notebook 02
-  # always views its own freshly-written _ref output regardless of these keys;
+  # raw image above, i.e. <raw_image>_ref.img and <raw_image>_ref.hdr. Notebook
+  # 02 always views its own freshly-written _ref output regardless of these keys;
   # notebook 03 reads them as its input and falls back to the same default when
   # they are blank. Set them only to point notebook 03 at a reflectance image
   # that was NOT produced from raw_image (e.g. one supplied separately) --
@@ -33,28 +36,25 @@ paths:
   reflectance_image_hdr:
 
   # ------------------------------------------------------------------------
-  # Calibration inputs: shipped, committed, read-only reference the fit needs.
-  # (cal_tarp_spectra is the tarps' known reflectance -- the same across
-  # collections; CalPanels.pkl is the cal-panel ROIs for the cal image above.)
+  # Calibration fit inputs for notebook 01 (you supply these):
+  #   cal_library_* -- the tarps' known reflectance (ASD-measured library).
+  #   cal_panel_rois -- the cal-panel ROIs drawn on cal_image above.
+  # DRAW FRESH cal-panel ROIs for EACH data collection: CalPanels.pkl stores
+  # measured DN, not a reusable region, so reusing another collection's pickle
+  # silently re-fits that collection's tarps.
   # ------------------------------------------------------------------------
-  cal_library_sli: examples/calibration/cal_tarp_spectra.sli
-  cal_library_hdr: examples/calibration/cal_tarp_spectra.hdr
-  cal_panel_rois:  examples/calibration/CalPanels.pkl   # saved cal-panel ROIs
+  cal_library_sli: data/my_collection/cal_tarp_spectra.sli
+  cal_library_hdr: data/my_collection/cal_tarp_spectra.hdr
+  cal_panel_rois:  data/my_collection/CalPanels.pkl   # saved cal-panel ROIs
 
   # ------------------------------------------------------------------------
   # Calibration bundle for THIS collection. Notebook 01 writes gain.npy,
   # offset.npy and the panel_*_spectra.npy intermediates INTO this directory;
   # notebook 02 and the batch script read gain.npy/offset.npy FROM it. Point it
-  # at a per-collection directory under data/ (gitignored) so each collection
-  # keeps its own coefficients.
-  calibration_dir: data/calibration/example
-
-  # Shipped seed calibration (committed, read-only). When calibration_dir has no
-  # gain/offset yet -- e.g. a fresh clone, before notebook 01 has been run --
-  # notebook 02 and the batch script fall back to this set and say so, so the
-  # repo still runs from a clone. Run notebook 01 for a real collection to write
-  # its own coefficients into calibration_dir above.
-  calibration_seed_dir: examples/calibration
+  # at a per-collection directory so each collection keeps its own coefficients.
+  # Re-run notebook 01 for every new collection -- gain/offset absorb that
+  # collection's illumination and exposure and are not valid for another.
+  calibration_dir: data/my_collection/calibration
 
 reflectance:
   smoothing_level: 2                    # spatial-smoothing iterations
@@ -64,5 +64,5 @@ batch:
   # For scripts/batch_convert_reflectance.py: convert every image in this
   # directory whose file name ends with `ends_with`. input_dir is a path
   # (resolved against the repo root); ends_with is a filename suffix, not a path.
-  input_dir: examples/sample
+  input_dir: data/my_collection
   ends_with: _or

@@ -15,7 +15,6 @@ Paths and parameters come from config.yaml. The script resolves config.yaml
 import os
 import gc
 import time
-import warnings
 from pathlib import Path
 import numpy as np
 import spectral
@@ -44,23 +43,15 @@ smoothing_level = CONFIG["reflectance"]["smoothing_level"]
 bbl_wl_ranges = CONFIG["reflectance"]["bbl_wl_ranges"]
 
 # Calibration coefficients from notebook 01 (loaded once, subset per image).
-# Prefer this collection's bundle in calibration_dir; fall back to the shipped
-# seed set when it is not there yet, and say which was used so a stale or
-# wrong-collection calibration is noticed rather than silently applied.
+# Read this collection's bundle from calibration_dir. Nothing ships in the repo:
+# run notebook 01 for THIS collection first so calibration_dir holds
+# gain.npy/offset.npy. Never point calibration_dir at another collection's
+# bundle -- gain/offset absorb that collection's illumination and exposure and
+# are not valid for another.
 _cal_dir = CONFIG["paths"]["calibration_dir"]
-_seed_dir = CONFIG["paths"]["calibration_seed_dir"]
 _gain = os.path.join(_cal_dir, "gain.npy")
 _offset = os.path.join(_cal_dir, "offset.npy")
-if not (os.path.exists(_gain) and os.path.exists(_offset)):
-    warnings.warn(
-        f"No gain/offset in calibration_dir ({_cal_dir}); falling back to the "
-        f"shipped seed set in {_seed_dir}. Run notebook 01 for this collection "
-        "if it needs its own calibration."
-    )
-    _gain = os.path.join(_seed_dir, "gain.npy")
-    _offset = os.path.join(_seed_dir, "offset.npy")
-print(f"Using gain:   {_gain}")
-print(f"Using offset: {_offset}")
+print(f"Using calibration from: {_cal_dir}")
 gain_full = np.load(_gain)
 offset_full = np.load(_offset)
 
@@ -94,8 +85,12 @@ for count, file_name in enumerate(fnames, start=1):
     mask = (im.read_band(0) > 0).astype(np.float32)
 
     print("Converting to reflectance.")
+    # reflectance = gain*counts + offset, matching notebook 01's empirical-line
+    # fit (LinearRegression with fit_intercept=True). The * mask is applied
+    # OUTSIDE the affine term so no-data pixels stay exactly 0 (offset must not
+    # leak into them), preserving the band0>0 mask convention used downstream.
     for i, b in enumerate(indices):
-        imRef[:, :, i] = (gain[i] * np.squeeze(im.read_band(b) + offset[i]) * mask).astype(np.float32)
+        imRef[:, :, i] = ((gain[i] * np.squeeze(im.read_band(b)) + offset[i]) * mask).astype(np.float32)
 
     for i in range(smoothing_level):
         print(f"Smoothing, iteration {i + 1}.")

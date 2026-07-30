@@ -23,37 +23,39 @@ jupyter lab                                            # launch from the repo ro
 > The devcontainer does the two install steps for you.
 
 > Notebooks 01 and 03 use the interactive **hsiViewer** (PyQt) to draw ROIs, so they
-> need a desktop/display session. A small calibration set ships in `data/calibration/`
-> so notebook 02 (and the non-interactive cells of 01) run from a fresh clone.
+> need a desktop/display session. **No imagery or calibration ships in this repo** —
+> you supply your own (see [Data](#data)), so the notebooks do not run from a bare
+> clone.
 
 | Notebook | What it does |
 |----------|--------------|
 | `notebooks/01_calibrate_cal_panels.ipynb` | Draw ROIs on the cal tarps and fit per-band gain/offset. |
 | `notebooks/02_convert_to_reflectance.ipynb` | Apply the calibration to a raw image → reflectance. |
 | `notebooks/03_create_training_rois.ipynb` | Draw labeled training ROIs on a reflectance image. |
-| `notebooks/legacy/train_apply_lda_model.ipynb` | Legacy LDA classifier (superseded by `upwins-veg-classifier`). |
 | `scripts/batch_convert_reflectance.py` | Convert a whole directory of images to reflectance in one run. |
 
 ## Layout
 
 ```
 config.yaml              All paths and parameters live here.
-notebooks/               The three deliverable notebooks (run in order), plus legacy/.
+notebooks/               The three deliverable notebooks (run in order).
 src/upwins_hsi/          Importable support code (installed via `pip install -e .`).
 src/hsiViewer/           Interactive PyQt viewer + ROI tools. Import path kept as `hsiViewer`
                          so ROI/cal-panel pickles (recorded as hsiViewer.hsi_viewer_ROI) load.
 scripts/                 Batch reflectance conversion.
-examples/calibration/    Committed calibration reference set; see examples/README.md.
-examples/sample/         Placeholder for a small runnable example (not yet populated).
-data/                    Not committed -- external imagery and run outputs; see docs/data.md.
+data/                    Not committed -- your imagery, calibration inputs, and run
+                         outputs go here; see docs/data.md.
 docs/                    Data guide and recording runbook.
 ```
 
 ## Data
 
-All paths and parameters are in `config.yaml`. For recording, point the image
-pairs in `config.yaml` at your full data; see `docs/data.md`. The recording
-guide is `docs/recording_runbook.md`.
+**Nothing ships in this repo** — no imagery, no calibration. You supply your own
+raw cubes, the ASD cal-tarp library, and the cal-panel ROIs, and notebook 01
+fits the per-band `gain`/`offset` for each collection. All paths and parameters
+are in `config.yaml`; point the image pairs and calibration inputs at your data
+(the placeholders sit under `data/`, which is gitignored). See `docs/data.md`
+for the expected layout and `docs/recording_runbook.md` for the recording guide.
 
 ### If you use the devcontainer
 
@@ -66,8 +68,7 @@ source=${localEnv:HOME}/projects/upwins/data  ->  /workspaces/upwins-hsi-preproc
 **The host path is hardcoded.** Edit that `mounts` line in
 `.devcontainer/devcontainer.json` if your data is not at `~/projects/upwins/data`,
 or Docker silently creates an empty directory and the notebooks fail with
-missing-file errors. Anything the repo ships for a run lives outside `data/`
-(under `examples/`), so the mount never hides it. See `docs/data.md`.
+missing-file errors. See `docs/data.md`.
 
 ## Acknowledgment
 

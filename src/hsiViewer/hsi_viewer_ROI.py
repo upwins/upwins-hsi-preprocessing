@@ -520,7 +520,10 @@ class viewer(QMainWindow):
             self.ROI_table.setItem(rowPosition, 2, item)
             # set the unique id num
             self.ROI_table.setItem(rowPosition, 3, QTableWidgetItem("ROI_num_"+str(self.ROI_Id_num_count)))
-            self.ROI_dict["ROI_num_"+str(self.ROI_Id_num_count)] = copy.deepcopy(self.ROImask_empty[:])
+            # Store the mask that was just loaded from the file (B5 fix). The
+            # previous code stored an EMPTY mask here, so re-opening an ROI file
+            # to extend it and re-saving wrote empty ROIs over the real ones.
+            self.ROI_dict["ROI_num_"+str(self.ROI_Id_num_count)] = np.reshape(mask, self.ROImask_empty.shape).copy()
             self.ROI_Id_num_count = self.ROI_Id_num_count + 1
         # de-select all rows
         self.ROI_table.clearSelection()

@@ -1,6 +1,6 @@
 # Data lives outside the repo (bind-mounted over data/ in the devcontainer).
-# Nothing under data/ is committed, so this needs no exceptions. Anything the
-# repo does ship for a run lives outside data/ -- see examples/ and docs/data.md.
+# Nothing under data/ is committed, so this needs no exceptions. Nothing ships in
+# the repo -- you supply imagery and calibration under data/. See docs/data.md.
 data/
 
 # Notebook / Python cruft
