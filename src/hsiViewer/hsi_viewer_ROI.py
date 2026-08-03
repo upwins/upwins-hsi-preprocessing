@@ -13,6 +13,7 @@ import spectral
 import pickle
 import time
 import copy
+import os
 
 # supress warnings from pandas when building DataFrames from ROI pixel spectra
 simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
@@ -26,7 +27,11 @@ class ROIs_class:
         
 class viewer(QMainWindow):
     def __init__(self, im, detIm = np.zeros((2,2)), stretch=[2,98], rotate=False, roi_fname=None):
-        # initiating GUI functions 
+        # roi_fname: where the "Save ROIs" / "Load ROIs" dialogs open. Either a
+        # full pickle path (the dialogs pre-fill that name, e.g. the configured
+        # cal_panel_rois) or a directory (the dialogs open there with no name
+        # pre-filled, e.g. the configured collection_dir). None -> cwd.
+        # initiating GUI functions
         window = pg.plot()      
         window.setWindowTitle('Initiating GUI') 
         window.close()         
@@ -489,11 +494,11 @@ class viewer(QMainWindow):
         print(self.roi_fname)
         # get filename to read
         if self.roi_fname==None:
-            try:
-                self.roi_fname = im.filename[-3:]+'_rois.pkl'
-            except:                
-                self.roi_fname = 'C:\\Spectra_data\\Spectral_images'
-        fname, extension = QFileDialog.getSaveFileName(self, "Choose ROI pickle file to load", self.roi_fname, "PKL (*.pkl)")
+            self.roi_fname = os.getcwd()
+        # getOpenFileName (not getSaveFileName): this dialog picks an EXISTING
+        # pickle to read, so it must show an Open button and must not offer to
+        # create/overwrite a file.
+        fname, extension = QFileDialog.getOpenFileName(self, "Choose ROI pickle file to load", self.roi_fname, "PKL (*.pkl)")
         # return with no action if user selected "cancel" button
         if (len(fname)==0):
             return
@@ -533,10 +538,7 @@ class viewer(QMainWindow):
         print(self.roi_fname)
         # get output filename
         if self.roi_fname==None:
-            try:
-                self.roi_fname = im.filename[-3:]+'_rois.pkl'
-            except:                
-                self.roi_fname = 'C:\\Spectra_data\\Spectral_images'
+            self.roi_fname = os.getcwd()
         fname, extension = QFileDialog.getSaveFileName(self, "Choose output name", self.roi_fname, "PKL (*.pkl)")
         # return with no action if user selected "cancel" button
         if (len(fname)==0):

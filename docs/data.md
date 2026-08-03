@@ -37,7 +37,7 @@ repo produces feed the companion **`upwins-veg-classifier`** training notebook.
 
 ```
 data/                            External, gitignored -- you create this.
-└── <collection>/
+└── <collection>/                   <- config.yaml's `collection_dir`
     ├── raw_0_or  / .hdr             raw cube with the cal panels (notebook 01)
     ├── raw_34850_or / .hdr          raw cube to convert (notebook 02)
     ├── cal_tarp_spectra.sli / .hdr  ASD cal-tarp reference library
@@ -48,6 +48,12 @@ data/                            External, gitignored -- you create this.
 
 `config.yaml`'s placeholders already follow this shape under
 `data/my_collection/`; edit them for your collection name and paths.
+
+`collection_dir` names that per-collection directory (default
+`data/my_collection`). Notebook 03's ROI Save/Load dialogs open there, so
+training-ROI pickles land beside the collection's imagery. YAML has no variable
+substitution, so the other paths spell the directory out in full — change them
+alongside `collection_dir`.
 
 ## Getting the full dataset
 

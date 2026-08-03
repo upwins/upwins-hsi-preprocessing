@@ -11,6 +11,15 @@
 
 paths:
   # ------------------------------------------------------------------------
+  # Root directory for this data collection. By convention every other path
+  # below lives under it, and it is where the notebooks' ROI save/load dialogs
+  # open by default (notebook 03). YAML has no variable substitution, so the
+  # paths below spell the directory out in full -- if you change this, change
+  # them too.
+  # ------------------------------------------------------------------------
+  collection_dir:        data/my_collection
+
+  # ------------------------------------------------------------------------
   # ENVI image cubes are given as a pair: the image file and its header. Both
   # entries of a pair must name the same cube (the notebooks assert this).
   # ------------------------------------------------------------------------
