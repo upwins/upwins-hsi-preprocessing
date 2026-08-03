@@ -6,7 +6,8 @@ batch_convert_reflectance.py
 Batch companion to notebook 02: convert every raw image in a directory to
 reflectance using the gain/offset from notebook 01, then bad-band removal and
 spatial smoothing. Reflectance images are written next to each input as
-`<name>_ref.img/.hdr`.
+`<name>_ref.img/.hdr`, where `<name>` drops any ENVI data extension: a
+`raw_5.bin` input yields `raw_5_ref.img`, not `raw_5.bin_ref.img`.
 
 Paths and parameters come from config.yaml. The script resolves config.yaml
 (and the paths inside it) from the repo root, so it runs from any directory:
@@ -20,7 +21,7 @@ import numpy as np
 import spectral
 import yaml
 
-from upwins_hsi import utils  # spatial_smoothing
+from upwins_hsi import utils  # spatial_smoothing, ENVI path helpers
 
 # ---- Configuration ----
 # config.yaml lives at the repo root and its paths are relative to it. Walk up
@@ -56,8 +57,13 @@ gain_full = np.load(_gain)
 offset_full = np.load(_offset)
 
 # ---- Collect the images to process ----
+# Skip this script's own products. `_ref` outputs land next to their inputs, so
+# an `ends_with` that also matches them (e.g. ".img") would re-convert them on
+# the next run and write <name>_ref_ref.img, applying the calibration twice.
 fnames = [os.path.join(data_dir, f) for f in os.listdir(data_dir)
-          if f.endswith(ends_with_text)]
+          if f.endswith(ends_with_text)
+          and not utils.envi_basename(f).endswith("_ref")
+          and not f.endswith(".hdr")]
 print(f"Found {len(fnames)} image(s) ending with '{ends_with_text}' in {data_dir}")
 
 for count, file_name in enumerate(fnames, start=1):
@@ -65,7 +71,10 @@ for count, file_name in enumerate(fnames, start=1):
     start_time = time.time()
     print(f"\nProcessing image {count} of {len(fnames)}: {file_name}")
 
-    fname_hdr = file_name + ".hdr"
+    # Accept either header convention: <file>.hdr or <base>.hdr. This script
+    # used to assume the first, while config.yaml's image pairs use the second,
+    # so a .bin collection one entry point accepted the other rejected.
+    fname_hdr = utils.find_envi_header(file_name)
     im = spectral.envi.open(fname_hdr, file_name)
     wl = np.asarray(im.bands.centers)
 
@@ -105,9 +114,24 @@ for count, file_name in enumerate(fnames, start=1):
         print(f"Smoothing, iteration {i + 1}.")
         imRef = utils.spatial_smoothing(imRef, mask=mask).astype(np.float32)
 
-    md = im.metadata
+    # Same header handling as notebook 02, which this script is the batch
+    # companion to: copy rather than alias the raw metadata, and subset EVERY
+    # per-band key (wavelength, fwhm, band names, bbl are positional lists of
+    # one entry per band, so each must stay exactly `bands` long). Drop
+    # `default bands`, whose band NUMBERS are renumbered by the bad-band removal.
+    md = dict(im.metadata)
+    for _key in ("fwhm", "band names", "bbl"):
+        _vals = md.get(_key)
+        if _vals is None:
+            continue
+        if len(_vals) == len(wl):
+            md[_key] = [_vals[b] for b in indices]
+        else:
+            print(f"  note: header key '{_key}' has {len(_vals)} entries for "
+                  f"{len(wl)} bands, so it was already inconsistent; left as is.")
     md["wavelength"] = [str(w) for w in wl_good]
-    out_hdr = file_name + "_ref.hdr"
+    md.pop("default bands", None)
+    out_hdr, _ = utils.reflectance_paths(file_name)
     print(f"Saving {out_hdr}")
     spectral.envi.save_image(out_hdr, imRef, metadata=md, force=True)
     print(f"Done in {time.time() - start_time:.1f}s")

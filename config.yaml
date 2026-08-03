@@ -29,14 +29,19 @@ paths:
   cal_image_hdr:         data/my_collection/raw_0_or.hdr
 
   # --- Notebook 02: raw image to convert to reflectance ---
+  # The data file may be extensionless or carry .img/.bin/.dat/.raw, and its
+  # header may be named either <file>.hdr or <base>.hdr -- both conventions are
+  # accepted. A known data extension is dropped before the _ref product is
+  # named, so raw_36286.bin converts to raw_36286_ref.img, not
+  # raw_36286.bin_ref.img.
   raw_image:             data/my_collection/raw_34850_or
   raw_image_hdr:         data/my_collection/raw_34850_or.hdr
 
   # --- Notebooks 02/03: reflectance image to view / draw training ROIs on ---
   # Leave BOTH blank (the common case) to use notebook 02's output for raw_image,
-  # <raw_image>_ref.img/.hdr. Set them only to point notebook 03 at a reflectance
-  # image not produced from raw_image; nb 03 warns if a set value disagrees with
-  # that default.
+  # <raw_image without its data extension>_ref.img/.hdr. Set them only to point
+  # notebook 03 at a reflectance image not produced from raw_image; nb 03 warns
+  # if a set value disagrees with that default.
   reflectance_image:
   reflectance_image_hdr:
 
