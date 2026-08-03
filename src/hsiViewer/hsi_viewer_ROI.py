@@ -508,8 +508,20 @@ class viewer(QMainWindow):
         colors = rois.colors
         masks = rois.masks
         for name in names:
-            rgb = colors[name]
-            mask = masks[name]
+            qcolor = self.parse_saved_color(colors[name])
+            # Bring the saved mask back into the orientation the viewer displays.
+            # saveROIs un-rotates before writing, so masks on disk are always in
+            # the original image orientation; a rotate=True viewer shows the
+            # transposed one. Rotating (not reshaping -- see below) is what makes
+            # the two agree.
+            mask = np.squeeze(np.asarray(masks[name]))
+            if self.rotate:
+                mask = np.flip(np.rot90(mask, axes=(0,1)), axis=0)
+            if mask.shape != self.ROImask_empty.shape:
+                print(f"Skipping ROI '{name}': mask is {mask.shape}, but this "
+                      f"image is {self.ROImask_empty.shape}. The ROI file was "
+                      f"drawn on a different image.")
+                continue
             rowPosition = self.ROI_table.rowCount()
             self.ROI_table.insertRow(rowPosition)
             # set ROI name
@@ -517,7 +529,7 @@ class viewer(QMainWindow):
             # set ROI color
             item = QTableWidgetItem('  ')
             item.setFlags(item.flags() ^ Qt.ItemIsEditable)
-            item.setBackground(QColor(rgb[0], rgb[1], rgb[2]))
+            item.setBackground(qcolor)
             self.ROI_table.setItem(rowPosition, 1, item)
             # set number of pixels equal to number of 1s in the mask
             item = QTableWidgetItem(str(np.sum(mask)))
@@ -528,10 +540,36 @@ class viewer(QMainWindow):
             # Store the mask that was just loaded from the file (B5 fix). The
             # previous code stored an EMPTY mask here, so re-opening an ROI file
             # to extend it and re-saving wrote empty ROIs over the real ones.
-            self.ROI_dict["ROI_num_"+str(self.ROI_Id_num_count)] = np.reshape(mask, self.ROImask_empty.shape).copy()
+            # It then used np.reshape to fit ROImask_empty, which only reinterprets
+            # the buffer -- for a rotate=True viewer that silently moved every ROI
+            # pixel instead of rotating it. The rotation above replaces it.
+            self.ROI_dict["ROI_num_"+str(self.ROI_Id_num_count)] = mask.copy()
             self.ROI_Id_num_count = self.ROI_Id_num_count + 1
+            # paint the loaded ROI onto the overlay, so loaded ROIs are visible
+            # on the image and not just listed in the table
+            for i, channel in enumerate((qcolor.red(), qcolor.green(), qcolor.blue())):
+                self.imROI[:,:,i] = self.imROI[:,:,i]*(mask==0) + mask*float(channel)/255
+        # show the overlay with the ROIs just loaded
+        self.imv.setImage(self.imROI, autoRange=False)
+        self.imv_imType = 'imROI'
         # de-select all rows
         self.ROI_table.clearSelection()
+
+
+    def parse_saved_color(self, color):
+        # saveROIs writes QColor.name(), i.e. a '#rrggbb' STRING, but this used to
+        # be read back as if it were an (r, g, b) triple -- QColor(rgb[0], rgb[1],
+        # rgb[2]) then got ('#', 'f', 'f') and raised TypeError. Accept the hex
+        # string that is actually on disk, and still accept an (r, g, b) sequence
+        # in case an older/other writer produced one.
+        if isinstance(color, str):
+            qcolor = QColor(color)
+        else:
+            qcolor = QColor(int(color[0]), int(color[1]), int(color[2]))
+        if not qcolor.isValid():
+            print(f'Unrecognized ROI color {color!r}; falling back to white.')
+            qcolor = QColor(255, 255, 255)
+        return qcolor
 
         
     def saveROIs(self):
