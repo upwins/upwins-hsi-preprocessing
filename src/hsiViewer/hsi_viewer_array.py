@@ -38,6 +38,20 @@ class viewer(QMainWindow):
 
         # Set events
         self.imv.getImageItem().mouseClickEvent = self.click # create a spectral plot window if the image is clicked on
+
+        # This QMainWindow is never shown -- self.imv, created in show_RGB, is
+        # the window you see and close -- so the cleanup hangs off imv rather
+        # than off a closeEvent here. Clicking a pixel opens self.specPlot as a
+        # second top-level window, and while ANY Qt window is open the event
+        # loop pg.exec() starts below keeps running: the notebook cell never
+        # finishes and the kernel stays busy until you restart it.
+        _imv_close_event = self.imv.closeEvent
+        def _close_with_spec_plot(event, _original=_imv_close_event):
+            if getattr(self, 'specPlot', None) is not None:
+                self.specPlot.close()
+            _original(event)
+        self.imv.closeEvent = _close_with_spec_plot
+
         pg.exec() 
         
     def show_RGB(self):       

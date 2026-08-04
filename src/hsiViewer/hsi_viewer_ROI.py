@@ -223,7 +223,18 @@ class viewer(QMainWindow):
         self.imv.getImageItem().mouseClickEvent = self.click # create a spectral plot window if the image is clicked on        
         self.show() 
         pg.exec()          
-        
+
+    def closeEvent(self, event):
+        # Closing the viewer must leave no other Qt window open, or the event
+        # loop pg.exec() started in __init__ keeps running: the notebook cell
+        # never finishes, the kernel stays busy, and the next cell you run just
+        # queues behind it until you restart the kernel. Clicking a pixel opens
+        # self.specPlot as a SEPARATE top-level window, so close it with the
+        # viewer -- QApplication quits on the last window, not on this one.
+        if getattr(self, 'specPlot', None) is not None:
+            self.specPlot.close()
+        super().closeEvent(event)
+
     def computeGeometry(self):
         aspect_ratio = self.nrows/self.ncols
         if aspect_ratio > 1:

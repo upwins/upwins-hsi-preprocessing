@@ -120,6 +120,24 @@ This module is unused *here* (this repo's notebooks import `hsi_viewer_ROI` and
 vendors this directory. The fix has been re-synced there, all five modules
 byte-identical as decision 6c.1 requires.
 
+**Later fix — the viewers left the kernel busy** (2026-08-04). Every viewer ends
+`__init__` with `pg.exec()`, which runs the Qt event loop *inside* the notebook
+kernel and returns only when the **last** Qt window closes. Clicking a pixel
+opens `self.specPlot = pg.plot()` as a separate top-level window, so closing the
+viewer while a spectrum plot was still open left the loop running: the cell never
+finished, the kernel stayed busy, and the next cell run just queued behind it
+until the kernel was restarted. This is the "notebook stalls on the first cell
+until I restart the kernel" symptom, in `01_calibrate_cal_panels` and
+`03_create_training_rois` here and in the microscene repo's notebook 02.
+
+`hsi_viewer_ROI` and `hsi_viewer_layers` now close `self.specPlot` in a
+`closeEvent`. `hsi_viewer_array` never shows its `QMainWindow` — `self.imv` is
+the window the user closes — so it wraps `imv.closeEvent` instead, in the same
+idiom the file already uses for `mouseClickEvent`. Verified headless for all
+three: with a spectrum plot open, closing only the main window returned control
+after the change and hung before it. `hsi_viewer.py` and `hsi_viewer_2.py` are
+untouched — C4's unused modules, as with the `super().__init__()` fix above.
+
 **Still open in this document:** **P2-9** (grant/license/companion-name — one owner
 confirmation) and **§6c-5** (dataset link/DOI — the `TODO (data owner)` marker in
 `docs/data.md`). The **delete-this-working-doc** banner at the top still stands: this
