@@ -11,6 +11,20 @@ import spectral
 class viewer(QMainWindow):
     # Simple viewer - input is an image structure and an optional stretch
     def __init__(self, imArr, wl, stretch=[2,98]): 
+        # initiating GUI functions -- the same preamble hsi_viewer_ROI,
+        # hsi_viewer_layers and hsi_viewer_2 open with, and for the same two
+        # reasons. pg.plot() creates the QApplication that any QWidget needs to
+        # exist before it is constructed, and super().__init__() builds the
+        # QMainWindow base of this class. Without the latter this was a
+        # QMainWindow whose C++ base was never constructed, so every inherited
+        # method raised "super-class __init__() of type viewer was never
+        # called"; it went unnoticed only because the window you actually see
+        # is pg.image()'s, created in show_RGB below, and no inherited method
+        # was ever called.
+        window = pg.plot()
+        window.setWindowTitle('Initiating GUI')
+        window.close()
+        super().__init__()
         self.stretch = stretch
         self.wl = wl
         self.imArr = imArr

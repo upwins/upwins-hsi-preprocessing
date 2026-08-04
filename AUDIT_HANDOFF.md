@@ -99,6 +99,27 @@ trimmed), and **C8** (nb02 kernelspec). See `docs/audit_plan_alternate.md` for t
 detail. The only alternate-audit finding still open there is **C4** (three unused
 viewer modules), with B3/B7 Partial.
 
+**Later fix — `hsi_viewer_array.viewer` never called `super().__init__()`**
+(2026-08-04). It is a `QMainWindow` subclass whose Qt base class was never
+constructed, so every inherited method raised *"super-class `__init__()` of type
+viewer was never called"*. It went unnoticed because the window you see is
+`pg.image()`'s, created in `show_RGB`, and no inherited method was ever reached.
+`hsi_viewer_ROI`, `hsi_viewer_layers` and `hsi_viewer_2` all open with a
+`pg.plot()` / `close()` / `super().__init__()` preamble; this module and
+`hsi_viewer.py` do not. `hsi_viewer_array` now does — the preamble is required in
+that order, since constructing a `QWidget` before a `QApplication` exists is a
+fatal Qt abort, and `pg.plot()` is what creates the application.
+
+**`hsi_viewer.py` still has the identical defect** and is deliberately left alone:
+it is one of C4's three unused modules, and if C4 is settled by pruning them the
+fix is wasted. Fix it if C4 is settled by keeping them.
+
+This module is unused *here* (this repo's notebooks import `hsi_viewer_ROI` and
+`hsi_viewer_layers`), which is why it went unnoticed: it is
+`upwins-microscene-preprocessing`'s notebook 01 that calls it, and that repo
+vendors this directory. The fix has been re-synced there, all five modules
+byte-identical as decision 6c.1 requires.
+
 **Still open in this document:** **P2-9** (grant/license/companion-name — one owner
 confirmation) and **§6c-5** (dataset link/DOI — the `TODO (data owner)` marker in
 `docs/data.md`). The **delete-this-working-doc** banner at the top still stands: this
