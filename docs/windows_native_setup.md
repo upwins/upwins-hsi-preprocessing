@@ -11,7 +11,7 @@ Nothing in the repo changes. The notebooks, `config.yaml`, and the code are the
 same either way — only where Python lives differs.
 
 > **The devcontainer stays the primary install path** and is what `README.md`
-> and `docs/recording_runbook.md` assume. This document is the fallback.
+> assumes. This document is the fallback.
 
 ---
 
@@ -171,8 +171,8 @@ the same viewer.
   That is `pg.exec()`, and it is the same in the devcontainer — the cell finishes
   when you close the window.
 - **Everything else is identical**: same notebooks, same `config.yaml`, same
-  outputs. Nothing about the recording script changes.
-  See `docs/recording_runbook.md` for the running order.
+  outputs, same running order — the notebooks go top to bottom exactly as they
+  do in the container.
 
 ---
 

@@ -38,8 +38,8 @@ jupyter lab                                            # launch from the repo ro
 | `scripts/batch_convert_reflectance.py` | Convert a whole directory of images to reflectance in one run. |
 
 Each code cell has a short markdown cell above it explaining what it does, so
-the notebooks double as a written walkthrough. If you're recording or following
-the tutorial videos, `docs/recording_runbook.md` is the high-level guide.
+the notebooks double as a written walkthrough — read top to bottom, they are
+the documentation for the pipeline.
 
 ## Layout
 
@@ -52,8 +52,8 @@ src/hsiViewer/           Interactive PyQt viewer + ROI tools. Import path kept a
 scripts/                 Batch reflectance conversion.
 data/                    Not committed -- your imagery, calibration inputs, and run
                          outputs go here; see docs/data.md.
-docs/                    Data guide, recording runbook, and the Windows-native
-                         setup (the fallback to the devcontainer).
+docs/                    Data guide, and the Windows-native setup that is the
+                         fallback to the devcontainer.
 ```
 
 ## Data
@@ -63,7 +63,7 @@ raw cubes, the ASD cal-tarp library, and the cal-panel ROIs, and notebook 01
 fits the per-band `gain`/`offset` for each collection. All paths and parameters
 are in `config.yaml`; point the image pairs and calibration inputs at your data
 (the placeholders sit under `data/`, which is gitignored). See `docs/data.md`
-for the expected layout and `docs/recording_runbook.md` for the recording guide.
+for the expected layout.
 
 ### If you use the devcontainer
 
