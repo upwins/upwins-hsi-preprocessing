@@ -87,6 +87,18 @@ defect still standing). The **Status** column is now as of branch
 `claude/audit-repo-cleanup-f80o10` @ `2c218cf` (2026-07-30); rows changed in that pass
 are marked **(07-30)**.
 
+> **Update — 2026-08-05, branch `claude/client-repo-docs-consistency-fehfiy`.** A
+> docs/comment consistency pass across all three client repos. It changed no
+> logic and closed no finding here; two rows below carry an **(08-05)** note where
+> the recorded status had drifted from the tree. The owner also decided that
+> **this document, `AUDIT_HANDOFF.md`, `docs/temp_audit_plan_cross_check.md` and
+> `docs/recording_runbook.md` are all removed before delivery**, and every
+> reference to them was stripped from the shipped tree — including the `(B2)`
+> finding IDs that this pass's B2 fix left in `scripts/batch_convert_reflectance.py`
+> and notebook 02. The guards themselves are untouched. For the full record and
+> the outstanding-decision task list, see *Docs/comment consistency pass* in
+> `AUDIT_HANDOFF.md`.
+
 | # | Finding (short) | Severity | Status (as of 2026-07-30) | Slimmer-audit item |
 |---|---|---|---|---|
 | A1a | Docs promise a from-clone run | Blocking | ✅ **Resolved (07-30)** — docs honest; nothing ships | P0-2 (§6b-1) |
@@ -100,10 +112,10 @@ are marked **(07-30)**.
 | B6 | Smoothing bleeds into no-data pixels | Low | ✅ **Fixed (07-30)** — mask re-applied after averaging | not covered |
 | B7 | `CalPanels.pkl` freezes DN → silent re-fit | High | 🟡 **Mitigated (07-30)** — no shipped pickle, seed fallback gone, reminder added; no hard guard | not covered |
 | B8 | Mid tarp 98.6 % saturated in committed calibration | High | ✅ **Moot (07-30)** — committed calibration removed | not covered (was "faithful") |
-| C1 | `utils.py` 850 lines, ~55 used; `psutil`/`scipy` pins | — | ✅ **Fixed (07-30)** — trimmed to 64 lines; `psutil`/`scipy` dropped | not covered |
+| C1 | `utils.py` 850 lines, ~55 used; `psutil`/`scipy` pins | — | ✅ **Fixed (07-30)** — trimmed to 64 lines; `psutil`/`scipy` dropped. **(08-05)** now **142** lines: the ENVI path helpers were added afterwards for P1-4/P1-5. Trim stands; the count above is stale | not covered |
 | C2 | Devcontainer mount dev-specific + wrong workspace | — | ✅ **Resolved** | P1-3 |
 | C3 | Devcontainer on multi-GB CUDA/TF image | — | ✅ **Resolved** | P1-3 |
-| C4 | Three unused viewer modules | — | 🔲 **Open** — the one remaining item | not covered |
+| C4 | Three unused viewer modules | — | 🔲 **Open** — the one remaining item. **(08-05)** unchanged: `hsi_viewer.py`, `hsi_viewer_2.py`, `hsi_viewer_array.py`. **Do not mirror a deletion into `upwins-microscene-preprocessing`** — it vendors this package and imports `hsi_viewer_array`, so its unused set is a different three | not covered |
 | C5 | Copy-pasted import block none of the notebooks needs | — | ✅ **Fixed (07-30)** — each notebook's imports trimmed | not covered |
 | C6 | Leftover pre-config instruction cells + typos | — | ✅ **Resolved (07-30)** — typos fixed | P2-11 |
 | C7a | Docs overstate what ships | — | ✅ **Resolved (07-30)** — docs honest | P0-2 / P1-10 |

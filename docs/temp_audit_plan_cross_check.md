@@ -21,6 +21,21 @@ Cross-checked 2026-07-28 on branch `claude/audit-plan-cross-check-2qya0i`.
 > `AUDIT_HANDOFF.md` (Handoff-decision cleanup). Paths like `data/calibration/*` and
 > `atmospheric_compensation.py` line references are historical.
 
+> **Status note — 2026-08-05, branch `claude/client-repo-docs-consistency-fehfiy`.**
+> A docs/comment consistency pass across all three client repos. It changed no
+> logic and no attribution verdict below. It does change this document's fate:
+> the owner decided that **this file, `AUDIT_HANDOFF.md`,
+> `docs/audit_plan_alternate.md` and `docs/recording_runbook.md` are all removed
+> before delivery**, and every reference to them has been stripped from the
+> shipped tree — including the `(B2)` finding IDs left in
+> `scripts/batch_convert_reflectance.py` and notebook 02. Two corrections to
+> statuses recorded elsewhere: `utils.py` is **142** lines, not the 64 recorded
+> for C1 (the ENVI path helpers were added after the trim), and C4's three unused
+> viewer modules must not be deleted in lockstep with
+> `upwins-microscene-preprocessing`, which vendors the same package but imports a
+> different subset. For the full record and the outstanding-decision task list,
+> see *Docs/comment consistency pass* in `AUDIT_HANDOFF.md`.
+
 ## Bottom line
 
 **No finding in the audit plan was falsely attributed.** Every issue it raises is

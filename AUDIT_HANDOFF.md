@@ -146,6 +146,77 @@ working docs, kept for now by owner request.
 
 ---
 
+## Docs/comment consistency pass — added 2026-08-05 (branch `claude/client-repo-docs-consistency-fehfiy`)
+
+> **This section is the current state and supersedes everything above where they
+> disagree.** All three client repos were reviewed together for consistency with
+> each other and with their codebases. Two owner decisions reframe several items
+> below: **the working audit documents are removed before delivery**, and **the
+> recording runbooks are removed before delivery**. Nothing that ships now cites
+> either, so every reference below to a finding ID in the code, or to
+> `docs/recording_runbook.md` as a shipped document, describes history.
+
+**What changed in this repo:**
+
+| Change | Why | Supersedes |
+|---|---|---|
+| `(B2)` finding IDs dropped from `scripts/batch_convert_reflectance.py` and nb02's conversion cell | The audit docs are removed before delivery; a client cannot resolve the reference. The guards themselves are unchanged | B2's implementation note above |
+| `pyproject.toml` no longer says the pins "must match the environment the committed calibration set was created in" | Nothing ships — that clause outlived `examples/` being deleted on 2026-07-30 | P0-2 / P0-3 wording |
+| README: notebook 02 named as needing a display too (it ends with an optional viewer cell) | Was "notebooks 01 and 03" only | P1-10 |
+| `src/upwins_hsi/utils.py` provenance corrected to `research_species_mapping` | It said `research_UPWINS_Microscene`, which is the *microscene* repo's upstream, not this one's | C1 |
+| Three inherited typos in `utils.py` (`handeled`, `diagnol`, `coumn`) and one in nb02 (`sepctra`) | — | C6 (same class) |
+| nb01's leftover red-HTML cell deleted | Raw `<p style="color:red">`, duplicated the `⚠️` cell below it, and named the viewer alias `hrv` where the import is `hvr`. Every code cell still has a markdown cell above it | C5/C6 class |
+| `src/upwins_hsi/__init__.py` and `src/hsiViewer/__init__.py` docstrings expanded | Matched to the companion repos' depth; hsiViewer's now records that this copy is the source of truth for the vendored ones | §2 consistency baseline |
+| `requirements.txt` records the shared-pin policy | The three repos' shared packages are pinned identically; only microscene said so | §2 consistency baseline |
+| Every reference to `docs/recording_runbook.md` removed from `README.md` and `docs/windows_native_setup.md` | The runbook is removed before delivery | — |
+
+**Corrections to statuses recorded above:**
+
+- **C1** — the *Handoff-decision cleanup* section says `utils.py` was trimmed
+  "850→64 lines". It is **142 lines** today: the ENVI path helpers
+  (`envi_basename`, `reflectance_paths`, `find_envi_header`, `same_cube`) were
+  added afterwards for P1-4/P1-5. The trim happened; the line count is stale.
+- **C4** — still open, unchanged: `hsi_viewer.py`, `hsi_viewer_2.py` and
+  `hsi_viewer_array.py` are present and imported by nothing here. Note for
+  anyone acting on it that `upwins-microscene-preprocessing` vendors this same
+  package and **does** import `hsi_viewer_array`, so the two repos' unused sets
+  differ — deleting a module here is not safe to mirror there.
+- **§8 (defects in `upwins-veg-classifier`)** — all three are resolved in that
+  repo. Its README says "three notebooks", the `docs/` HTML-exports claim is
+  gone, and the Layout line now reads "Where notebook 01 writes the model bundle
+  -- not populated in a fresh clone". Section 8 is history, not a live list.
+
+### Deferred — owner decisions still outstanding
+
+- [ ] **Name `upwins-microscene-preprocessing` as a second producer of this
+      pipeline's inputs.** This repo's README calls itself "the **first half** of
+      the UPWINS pipeline" and never mentions microscene, which feeds the same
+      classifier from the benchtop side. Deferred 2026-08-05 pending the decision
+      on whether a microscene tutorial video is recorded. *Partial exception:*
+      `docs/windows_native_setup.md` already names microscene, in the one-venv-per-repo
+      note.
+- [ ] **Video numbering, if the videos are recorded.** The runbooks are being
+      removed, and with them the only statement of the series order (this repo was
+      "Video 1", `upwins-veg-classifier` "Video 2", microscene "Video 3" — and the
+      veg runbook never claimed a number, though both others called it Video 2).
+      If the ordering is still wanted, it needs a home outside the runbooks.
+- [ ] **Notebook structure.** Deferred 2026-08-05 except the red-HTML cell above.
+      Microscene is the house style — an H1 title + intro cell on every notebook and
+      numbered `## N.` sections throughout. Here, nb01 has numbered sections but no
+      title cell; nb02 has two unnumbered headings; nb03 has one. The
+      markdown-above-every-code-cell narration is complete and correct in all three.
+- [ ] **P2-9 attribution** (grant number / `LICENSE` / companion-repo name) —
+      still awaiting one owner confirmation, explicitly deferred again 2026-08-05.
+      Note `upwins-microscene-preprocessing`'s `LICENSE` says
+      `Copyright (c) 2025 William F Basener` where this repo and
+      `upwins-veg-classifier` say `Copyright (c) 2025 upwins`.
+- [ ] **§6c-5** — the dataset link/DOI `TODO (data owner)` in `docs/data.md`.
+- [ ] **Delete this file**, `docs/audit_plan_alternate.md` and
+      `docs/temp_audit_plan_cross_check.md` before delivery, along with
+      `docs/recording_runbook.md`. Nothing that ships references any of them.
+
+---
+
 ## 1. Verified faithful — do not re-audit, do not "fix"
 
 Confirmed by direct comparison. Treat as settled.
