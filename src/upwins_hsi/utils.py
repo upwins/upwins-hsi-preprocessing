@@ -3,8 +3,9 @@ Support code for the UPWINS hyperspectral preprocessing notebooks.
 
 Trimmed to what the notebooks and the batch script actually use
 (``spatial_smoothing``, plus the ENVI path helpers below). The fuller research
-utilities — RGB/PCA display, GeoTIFF export, PDF reporting, LDA helpers — live
-in ``research_UPWINS_Microscene`` and were dropped here as unused dead code.
+utilities — RGB/PCA display, GeoTIFF export, PDF reporting, LDA helpers — were
+dropped here as unused dead code; they remain in the history of the research
+repo this one was cut from (``research_species_mapping``).
 """
 import copy
 import os
@@ -102,7 +103,7 @@ def spatial_smoothing(arr, mask=None):
     mask_sum = copy.copy(mask)
     # Smooth the image by taking the mean of each pixel at location (r,c) with the pixels at:
     # (r,c), (r+1,c), (r,c+1), and (r+1,c+1).
-    # Edge cases are handeled by averaging with pixels mirror imaged back into the array.
+    # Edge cases are handled by averaging with pixels mirror imaged back into the array.
     nr, nc, nb = arr.shape
     arr_out = copy.copy(arr)
     # average each pixel spectrum with the spectrum for the pixel directly below (one row down).
@@ -117,7 +118,7 @@ def spatial_smoothing(arr, mask=None):
     arr_out[:, (nc-1), :] = arr_out[:, (nc-1), :] + arr[:, (nc-2), :]
     mask_sum[:, 0:(nc-1)] = mask_sum[:, 0:(nc-1)] + mask[:, 1:]
     mask_sum[:, (nc-1)] = mask_sum[:, (nc-1)] + mask[:, (nc-2)]
-    # average each pixel spectrum with the spectrum for the pixel diagnol down and to the right (plus one column, plus one row).
+    # average each pixel spectrum with the spectrum for the pixel diagonal down and to the right (plus one column, plus one row).
     # for the last row and column, average with previous row or column appropriately.
     arr_out[0:(nr-1), 0:(nc-1), :] = arr_out[0:(nr-1), 0:(nc-1), :] + arr[1:, 1:, :]
     mask_sum[0:(nr-1), 0:(nc-1)] = mask_sum[0:(nr-1), 0:(nc-1)] + mask[1:, 1:]
@@ -127,7 +128,7 @@ def spatial_smoothing(arr, mask=None):
     # last row, average with pixels up one row, right one column
     arr_out[(nr-1), 0:(nc-1), :] = arr_out[(nr-1), 0:(nc-1), :] + arr[(nr-2), 1:, :]
     mask_sum[(nr-1), 0:(nc-1)] = mask_sum[(nr-1), 0:(nc-1)] + mask[(nr-2), 1:]
-    # last coumn, average with left one column, down one row
+    # last column, average with left one column, down one row
     arr_out[0:(nr-1), (nc-1), :] = arr_out[0:(nr-1), (nc-1), :] + arr[1:, (nc-2), :]
     mask_sum[0:(nr-1), (nc-1)] = mask_sum[0:(nr-1), (nc-1)] + mask[1:, (nc-2)]
     # Set the values of zero in the mask to 1 to avoid dividing by zero

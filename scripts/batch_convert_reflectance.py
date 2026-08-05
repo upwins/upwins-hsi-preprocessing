@@ -78,7 +78,7 @@ for count, file_name in enumerate(fnames, start=1):
     im = spectral.envi.open(fname_hdr, file_name)
     wl = np.asarray(im.bands.centers)
 
-    # Band-grid guard (B2): coefficients are position-indexed and valid only for
+    # Band-grid guard: coefficients are position-indexed and valid only for
     # the band configuration they were fit on. Skip any image whose band count
     # does not match, rather than misaligning silently or IndexError-ing below.
     # (A batch skips the offending image and keeps going instead of aborting.)

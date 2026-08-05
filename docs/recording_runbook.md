@@ -112,3 +112,7 @@ That's where Video 2 picks up.
   ```bash
   git clone --branch v1.0.0-tutorial https://github.com/upwins/upwins-hsi-preprocessing
   ```
+- Export the notebooks you filmed (`jupyter nbconvert --to html notebooks/*.ipynb`)
+  if you want a static companion to the video. Do not pass `--execute` here — the
+  hsiViewer cells need a live desktop session — and regenerate the exports rather
+  than committing them, so they cannot drift out of step with the notebooks.

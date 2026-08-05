@@ -16,10 +16,9 @@ requires-python = ">=3.10"
 license = {text = "MIT"}
 
 # No [project.dependencies] on purpose. Runtime dependencies are pinned in
-# requirements.txt, which is the single source of truth for this project — the
-# pins must match the environment the committed calibration set was created in,
-# and duplicating them here would let the two lists drift. `pip install -e .`
-# exists only to put `upwins_hsi` and `hsiViewer` on the import path; install
+# requirements.txt, which is the single source of truth for this project, and
+# duplicating them here would let the two lists drift. `pip install -e .` exists
+# only to put `upwins_hsi` and `hsiViewer` on the import path; install
 # requirements.txt first (the devcontainer and the README both do).
 
 [tool.setuptools.packages.find]

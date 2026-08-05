@@ -1,6 +1,9 @@
 # Pinned for reproducibility. PyQt5 + pyqtgraph power the interactive hsiViewer
 # used to draw ROIs (notebooks 01 and 03), so a display/desktop session is needed
 # for those steps.
+#
+# Shared packages are pinned to the same versions as the companion UPWINS
+# repos, so one environment can serve all of them.
 numpy==1.26.4
 scikit-learn==1.5.1
 pandas==2.2.2

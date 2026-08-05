@@ -22,8 +22,9 @@ jupyter lab                                            # launch from the repo ro
 
 > The devcontainer does the two install steps for you.
 
-> Notebooks 01 and 03 use the interactive **hsiViewer** (PyQt) to draw ROIs, so they
-> need a desktop/display session. **No imagery or calibration ships in this repo** —
+> Notebooks 01 and 03 use the interactive **hsiViewer** (PyQt) to draw ROIs, and
+> notebook 02 ends with an optional viewer cell, so all three need a
+> desktop/display session. **No imagery or calibration ships in this repo** —
 > you supply your own (see [Data](#data)), so the notebooks do not run from a bare
 > clone.
 
@@ -33,6 +34,10 @@ jupyter lab                                            # launch from the repo ro
 | `notebooks/02_convert_to_reflectance.ipynb` | Apply the calibration to a raw image → reflectance. |
 | `notebooks/03_create_training_rois.ipynb` | Draw labeled training ROIs on a reflectance image. |
 | `scripts/batch_convert_reflectance.py` | Convert a whole directory of images to reflectance in one run. |
+
+Each code cell has a short markdown cell above it explaining what it does, so
+the notebooks double as a written walkthrough. If you're recording or following
+the tutorial videos, `docs/recording_runbook.md` is the high-level guide.
 
 ## Layout
 
