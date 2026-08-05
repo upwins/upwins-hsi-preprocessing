@@ -20,7 +20,9 @@ pip install -e .                                      # makes `upwins_hsi` impor
 jupyter lab                                            # launch from the repo root or notebooks/
 ```
 
-> The devcontainer does the two install steps for you.
+> The devcontainer does the two install steps for you. On Windows, if you would
+> rather run natively than in the container — the hsiViewer draws faster without a
+> display server in the way — see [`docs/windows_native_setup.md`](docs/windows_native_setup.md).
 
 > Notebooks 01 and 03 use the interactive **hsiViewer** (PyQt) to draw ROIs, and
 > notebook 02 ends with an optional viewer cell, so all three need a
@@ -50,7 +52,8 @@ src/hsiViewer/           Interactive PyQt viewer + ROI tools. Import path kept a
 scripts/                 Batch reflectance conversion.
 data/                    Not committed -- your imagery, calibration inputs, and run
                          outputs go here; see docs/data.md.
-docs/                    Data guide and recording runbook.
+docs/                    Data guide, recording runbook, and the Windows-native
+                         setup (the fallback to the devcontainer).
 ```
 
 ## Data

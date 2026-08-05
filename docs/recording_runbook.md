@@ -18,7 +18,7 @@ the gotchas.
 
 ## 0. Before you hit record
 
-- [ ] `pip install -r requirements.txt && pip install -e .` in a clean env (or open the devcontainer). PyQt5 + pyqtgraph must work — you need a desktop/display session for the viewer.
+- [ ] `pip install -r requirements.txt && pip install -e .` in a clean env (or open the devcontainer). PyQt5 + pyqtgraph must work — you need a desktop/display session for the viewer. If the viewer redraws sluggishly through the container's display server, `docs/windows_native_setup.md` sets the same environment up natively on Windows; the notebooks and `config.yaml` are unchanged either way.
 - [ ] Set `config.yaml` for your **real** collection (see *config.yaml in brief* below): the `cal_image` and `raw_image` pairs, and `calibration_dir`.
 - [ ] Confirm the data is reachable: the raw cal-panel image and a raw image to convert. (nb 03 opens the reflectance image nb 02 produces.)
 - [ ] `jupyter lab` — with the editable install above, imports (`from upwins_hsi import utils` / `from hsiViewer import …`) resolve whether you launch from the repo root or from `notebooks/`. Restart kernels so cell numbers are clean.
