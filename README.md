@@ -80,6 +80,3 @@ or Docker silently creates an empty directory and the notebooks fail with
 missing-file errors. See `docs/data.md`.
 
 ## Acknowledgment
-
-This material is based upon work supported by the National Science Foundation
-under Grant No. 2319470.
