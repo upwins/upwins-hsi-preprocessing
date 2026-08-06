@@ -103,9 +103,6 @@ Four rules cause every mislabeling worth knowing about:
 | `DS` | Drought stress |
 | `SS` | Salt stress (soak) |
 | `SY` | Salt stress (spray) |
-| `LLRZ` | LLRZ lab stress |
-| `R` | Rust |
-| `MH` | Healthy/unhealthy mix |
 
 **Lifecycle:**
 
