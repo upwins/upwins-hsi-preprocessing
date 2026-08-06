@@ -52,7 +52,8 @@ src/hsiViewer/           Interactive PyQt viewer + ROI tools. Import path kept a
 scripts/                 Batch reflectance conversion.
 data/                    Not committed -- your imagery, calibration inputs, and run
                          outputs go here; see docs/data.md.
-docs/                    Data guide, and the Windows-native setup that is the
+docs/                    Data guide, the ROI naming convention the classifier reads
+                         labels from, and the Windows-native setup that is the
                          fallback to the devcontainer.
 ```
 
